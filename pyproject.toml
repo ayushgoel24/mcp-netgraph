@@ -115,6 +115,7 @@ select = [
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # function call in default argument
+    "RUF022", # __all__ not sorted (we prefer categorical grouping)
 ]
 
 [tool.ruff.lint.isort]
