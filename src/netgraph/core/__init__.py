@@ -1,3 +1,8 @@
 """Core engine components: GraphManager, PathAnalyzer, etc."""
 
-__all__: list[str] = []
+from netgraph.core.graph_manager import CacheEntry, GraphManager
+
+__all__ = [
+    "CacheEntry",
+    "GraphManager",
+]
