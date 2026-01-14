@@ -140,13 +140,14 @@ class PathAnalysisResult(BaseModel):
 class DiscoveredResource(BaseModel):
     """A resource found via discovery search."""
 
-    resource_id: str
+    id: str  # Resource ID
     resource_type: NodeType
-    resource_arn: str
+    resource_arn: str = ""
     name: str | None = None
     tags: dict[str, str] = Field(default_factory=dict)
     vpc_id: str | None = None
     subnet_id: str | None = None
+    availability_zone: str | None = None
     private_ip: str | None = None
     public_ip: str | None = None
 
@@ -154,11 +155,14 @@ class DiscoveredResource(BaseModel):
 class ResourceDiscoveryResult(BaseModel):
     """Result of resource discovery search."""
 
-    query: dict[str, str | list[str] | None]  # The search criteria used
-    total_found: int
+    vpc_id: str
     resources: list[DiscoveredResource]
+    total_found: int
     truncated: bool = Field(
         False, description="True if more results exist beyond the limit"
+    )
+    filters_applied: dict[str, str | list[str] | None] = Field(
+        default_factory=dict, description="The search filters that were applied"
     )
 
 
@@ -167,14 +171,22 @@ class ExposedResource(BaseModel):
 
     resource_id: str
     resource_type: NodeType
-    resource_arn: str
+    resource_arn: str = ""
+
+    # Resource identification
+    name: str | None = None
+    private_ip: str | None = None
+    public_ip: str | None = None
 
     exposure_type: Literal["direct", "indirect"]
     exposure_path: list[str]  # Node IDs from resource to IGW
 
     open_port: int
     protocol: str
-    allowing_sg_rule_id: str
+
+    # Rules that allow the traffic
+    allowing_sg_rule_id: str | None = None  # Deprecated, use allowing_rules
+    allowing_rules: list[str] = Field(default_factory=list)
 
     severity: Literal["critical", "high", "medium", "low"]
     remediation: str
@@ -183,15 +195,20 @@ class ExposedResource(BaseModel):
 class PublicExposureResult(BaseModel):
     """Result of public exposure scan."""
 
+    vpc_id: str
     port: int
     protocol: str
     total_exposed: int
 
     exposed_resources: list[ExposedResource]
 
-    summary: str
-    high_severity_count: int
-    critical_severity_count: int
+    # Scan metrics
+    total_resources_scanned: int = 0
+    scan_duration_seconds: float = 0.0
+
+    summary: str = ""
+    high_severity_count: int = 0
+    critical_severity_count: int = 0
 
 
 class TopologyRefreshResult(BaseModel):

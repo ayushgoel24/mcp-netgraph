@@ -24,12 +24,9 @@ from netgraph.evaluators.security_group import SecurityGroupEvaluator
 from netgraph.models import (
     GraphNode,
     HopResult,
-    NetworkACL,
     NodeType,
     PathAnalysisResult,
     PathStatus,
-    Route,
-    RouteTable,
     RuleEvalResult,
     SecurityGroup,
 )
