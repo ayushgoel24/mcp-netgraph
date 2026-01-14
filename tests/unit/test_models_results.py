@@ -503,28 +503,30 @@ class TestDiscoveredResource:
     def test_minimal_resource(self) -> None:
         """Can create resource with required fields."""
         resource = DiscoveredResource(
-            resource_id="i-12345",
+            id="i-12345",
             resource_type=NodeType.INSTANCE,
             resource_arn="arn:aws:ec2:us-east-1:123456789012:instance/i-12345",
         )
-        assert resource.resource_id == "i-12345"
+        assert resource.id == "i-12345"
         assert resource.name is None
 
     def test_resource_with_all_fields(self) -> None:
         """Resource with all optional fields."""
         resource = DiscoveredResource(
-            resource_id="i-12345",
+            id="i-12345",
             resource_type=NodeType.INSTANCE,
             resource_arn="arn:aws:ec2:us-east-1:123456789012:instance/i-12345",
             name="web-server-1",
             tags={"Environment": "prod", "Team": "backend"},
             vpc_id="vpc-12345",
             subnet_id="subnet-12345",
+            availability_zone="us-east-1a",
             private_ip="10.0.1.50",
             public_ip="54.123.45.67",
         )
         assert resource.name == "web-server-1"
         assert resource.tags["Environment"] == "prod"
+        assert resource.availability_zone == "us-east-1a"
 
 
 class TestResourceDiscoveryResult:
@@ -533,27 +535,30 @@ class TestResourceDiscoveryResult:
     def test_empty_result(self) -> None:
         """Can create empty discovery result."""
         result = ResourceDiscoveryResult(
-            query={"name_pattern": "nonexistent-*"},
+            vpc_id="vpc-12345",
+            filters_applied={"name_pattern": "nonexistent-*"},
             total_found=0,
             resources=[],
         )
         assert result.total_found == 0
         assert result.truncated is False
+        assert result.vpc_id == "vpc-12345"
 
     def test_result_with_resources(self) -> None:
         """Result with discovered resources."""
         result = ResourceDiscoveryResult(
-            query={"name_pattern": "web-*", "resource_type": "instance"},
+            vpc_id="vpc-12345",
+            filters_applied={"name_pattern": "web-*", "resource_types": ["instance"]},
             total_found=2,
             resources=[
                 DiscoveredResource(
-                    resource_id="i-web1",
+                    id="i-web1",
                     resource_type=NodeType.INSTANCE,
                     resource_arn="arn:...",
                     name="web-prod-1",
                 ),
                 DiscoveredResource(
-                    resource_id="i-web2",
+                    id="i-web2",
                     resource_type=NodeType.INSTANCE,
                     resource_arn="arn:...",
                     name="web-prod-2",
@@ -565,7 +570,8 @@ class TestResourceDiscoveryResult:
     def test_truncated_result(self) -> None:
         """Result can be truncated."""
         result = ResourceDiscoveryResult(
-            query={"tags": ["Environment=prod"]},
+            vpc_id="vpc-12345",
+            filters_applied={"tags": "Environment=prod"},
             total_found=100,
             resources=[],  # Would have 20 in real use
             truncated=True,
@@ -616,16 +622,22 @@ class TestPublicExposureResult:
     def test_exposure_scan_result(self) -> None:
         """Public exposure scan result."""
         result = PublicExposureResult(
+            vpc_id="vpc-12345",
             port=22,
             protocol="tcp",
             total_exposed=3,
             exposed_resources=[],
+            total_resources_scanned=100,
+            scan_duration_seconds=1.5,
             summary="Found 3 resources with SSH exposed to internet",
             high_severity_count=1,
             critical_severity_count=2,
         )
+        assert result.vpc_id == "vpc-12345"
         assert result.total_exposed == 3
         assert result.critical_severity_count == 2
+        assert result.total_resources_scanned == 100
+        assert result.scan_duration_seconds == 1.5
 
 
 class TestTopologyRefreshResult:
