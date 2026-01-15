@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-netgraph"
+name = "aws-vpc-analyzer"
 version = "0.2.0"
 description = "MCP server for AWS VPC network topology analysis using NetworkX directed graphs"
 readme = "README.md"
