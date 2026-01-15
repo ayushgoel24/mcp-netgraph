@@ -697,7 +697,8 @@ class TestMultiTierTopology:
 
     @pytest.mark.asyncio
     async def test_web_to_app_to_db_chain(
-        self, mock_fetcher: EC2Fetcher  # noqa: ARG002
+        self,
+        mock_fetcher: EC2Fetcher,  # noqa: ARG002
     ) -> None:
         """Test the typical web -> app -> database flow.
 
