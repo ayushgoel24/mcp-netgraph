@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aws-vpc-analyzer"
-version = "0.4.0"
+version = "0.5.0"
 description = "MCP server for AWS VPC network topology analysis using NetworkX directed graphs"
 readme = "README.md"
 license = "MIT"
@@ -22,12 +22,20 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
+
 dependencies = [
     "mcp>=1.0.0",
     "networkx>=3.0",
     "boto3>=1.28.0",
     "pydantic>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ayushgoel24/mcp-netgraph"
+Documentation = "https://github.com/ayushgoel24/mcp-netgraph#readme"
+Repository = "https://github.com/ayushgoel24/mcp-netgraph.git"
+Issues = "https://github.com/ayushgoel24/mcp-netgraph/issues"
+Changelog = "https://github.com/ayushgoel24/mcp-netgraph/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
