@@ -1,381 +1,356 @@
 # NetGraph
 
-**Model Context Protocol (MCP) server for AWS VPC network topology analysis**
+**MCP server for AWS VPC network path analysis and security auditing**
 
-NetGraph models AWS VPC infrastructure as a NetworkX directed graph, enabling deterministic reachability analysis and security auditing for AI agents. It evaluates Security Groups, NACLs, and route tables to answer questions like "Can instance A reach instance B on port 443?"
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+NetGraph enables AI assistants to analyze AWS VPC network connectivity by modeling infrastructure as a graph. Ask questions like *"Can my web server reach the database on port 5432?"* and get deterministic answers with full path analysis.
 
-- **Lazy Graph-Based Topology** - Represent VPC resources (instances, ENIs, subnets, gateways) as NetworkX DiGraph nodes with routing relationships as directed edges
-- **Accurate Rule Evaluation** - Handle stateful Security Groups vs stateless NACLs correctly, with Managed Prefix List support
-- **Dual-Stack Networking** - Full IPv4 and IPv6 support throughout all evaluators
-- **Cross-Account Traversal** - Support VPC peering analysis across AWS accounts via STS role assumption
-- **LLM-Friendly Discovery** - Tag-based resource lookup to bridge natural language queries to AWS resource IDs
+## Why NetGraph?
 
-## Architecture
+**Without NetGraph**, debugging AWS network connectivity requires:
+- Manually tracing Security Groups, NACLs, and route tables
+- Checking stateful vs stateless rule semantics
+- Verifying return path routing for NACLs
+- Cross-referencing multiple AWS console pages
 
-```mermaid
-flowchart TB
-    subgraph MCP["MCP Layer"]
-        Server[MCP Server]
-        Tools[Tool Handlers]
-    end
+**With NetGraph**, your AI assistant can:
+- Analyze complete network paths in seconds
+- Identify exactly where traffic is blocked
+- Find resources exposed to the public internet
+- Discover resources by name or tags when you don't have IDs
 
-    subgraph Core["Core Engine"]
-        Graph[Graph Manager<br/>Read-Through Cache]
-        PathAnalyzer[Path Analyzer]
-        ExposureDetector[Exposure Detector]
-        Discovery[Resource Discovery]
-    end
+## Quick Start
 
-    subgraph Evaluation["Rule Evaluation"]
-        SGEvaluator[Security Group Evaluator]
-        NACLEvaluator[NACL Evaluator]
-        RouteEvaluator[Route Evaluator<br/>with LPM]
-        CIDRMatcher[CIDR Matcher<br/>IPv4 + IPv6]
-        PrefixResolver[Prefix List Resolver]
-    end
-
-    subgraph AWS["AWS Client Layer"]
-        AWSClient[AWS Client Factory]
-        EC2Client[EC2 Client]
-        STSClient[STS Client]
-        Cache[(Node Cache)]
-    end
-
-    Server --> Tools
-    Tools --> Graph
-    Tools --> PathAnalyzer
-    Tools --> ExposureDetector
-    Tools --> Discovery
-
-    PathAnalyzer --> SGEvaluator
-    PathAnalyzer --> NACLEvaluator
-    PathAnalyzer --> RouteEvaluator
-
-    SGEvaluator --> CIDRMatcher
-    SGEvaluator --> PrefixResolver
-    NACLEvaluator --> CIDRMatcher
-    RouteEvaluator --> CIDRMatcher
-
-    Graph --> AWSClient
-    Graph --> Cache
-    Discovery --> AWSClient
-    PrefixResolver --> AWSClient
-    AWSClient --> EC2Client
-    AWSClient --> STSClient
-```
-
-## Data Flow
-
-```mermaid
-sequenceDiagram
-    participant LLM as LLM/Client
-    participant MCP as MCP Server
-    participant PA as Path Analyzer
-    participant GM as Graph Manager<br/>(Cache)
-    participant AWS as AWS Client
-    participant RE as Rule Evaluators
-
-    LLM->>MCP: analyze_path(source, dest, port, proto)
-    MCP->>PA: evaluate_path()
-
-    PA->>GM: get_node(source_id)
-    alt Cache Miss
-        GM->>AWS: describe_instances(source_id)
-        AWS-->>GM: Instance data
-        GM->>GM: Cache node
-    end
-    GM-->>PA: Node with ENI, subnet refs
-
-    PA->>GM: get_subnet(subnet_id)
-    alt Cache Miss
-        GM->>AWS: describe_subnets(subnet_id)
-        AWS-->>GM: Subnet + route table
-        GM->>GM: Cache node
-    end
-    GM-->>PA: Subnet with route table
-
-    loop Each hop in path
-        PA->>GM: get_next_hop(route_target)
-        Note over GM: JIT fetch if not cached
-        PA->>RE: evaluate_egress(sg, nacl, route)
-        RE-->>PA: RuleResult(allowed/blocked/unknown, reason)
-        alt Blocked or Unknown
-            PA-->>MCP: PathResult(status, blocked_at)
-        end
-    end
-
-    PA->>RE: evaluate_ingress(dest_sg, dest_nacl)
-    RE-->>PA: RuleResult
-    PA-->>MCP: PathResult(status=REACHABLE/BLOCKED/UNKNOWN)
-    MCP-->>LLM: JSON response
-```
-
-## Installation
+### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/ayushgoel/mcp-netgraph.git
+pip install aws-vpc-analyzer
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/ayushgoel24/mcp-netgraph.git
 cd mcp-netgraph
-
-# Create and activate virtual environment (Python 3.10+)
-python -m venv .venv
-source .venv/bin/activate
-
-# Install in development mode
-pip install -e ".[dev]"
+pip install -e .
 ```
 
-## MCP Tools
+For detailed setup instructions, see the [Installation Guide](docs/installation.md).
 
-### analyze_path
+### Configure Your MCP Client
 
-Analyze network reachability from source to destination with hop-by-hop evaluation.
+Add NetGraph to your MCP client configuration. Replace `your-profile` with your AWS CLI profile name.
 
-```python
-analyze_path(
-    source_id="i-1234567890abcdef0",  # EC2 instance or ENI ID
-    dest_ip="10.0.2.100",              # IPv4 or IPv6 destination
-    port=443,
-    protocol="tcp",
-    force_refresh=False                # Bypass cache after AWS changes
-)
-```
+<details>
+<summary><b>Claude Desktop</b></summary>
 
-**Returns:** `PathAnalysisResult` with status (REACHABLE, BLOCKED, UNKNOWN), full hop path, and blocking details if blocked.
+**Config file location:**
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
 
-### find_public_exposure
-
-Find all resources exposed to the public internet on a specified port.
-
-```python
-find_public_exposure(
-    port=22,                           # Port to check
-    protocol="tcp",
-    severity_filter="critical",        # Optional: "all", "high", "critical"
-    vpc_ids=["vpc-123"]                # Optional: limit to specific VPCs
-)
-```
-
-**Returns:** `PublicExposureResult` with exposed resources and remediation guidance.
-
-### find_resources
-
-Tag-based resource discovery for natural language queries.
-
-```python
-find_resources(
-    name_pattern="web-*",              # Glob pattern for Name tag
-    tags={"Environment": "prod"},      # Filter by tags
-    resource_type="instance",          # instance, eni, subnet, security_group, vpc
-    vpc_id="vpc-123",                  # Optional VPC filter
-    limit=20
-)
-```
-
-**Returns:** `ResourceDiscoveryResult` with matching resources including IDs, IPs, and tags.
-
-### refresh_topology (Optional)
-
-Pre-warm the graph cache with VPC topology for faster subsequent queries.
-
-```python
-refresh_topology(
-    vpc_ids=["vpc-123", "vpc-456"],
-    cross_account_roles={"123456789012": "arn:aws:iam::123456789012:role/NetGraphRole"}
-)
-```
-
-## Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Lazy Loading (JIT)** | Eager ingestion times out on accounts with 5000+ ENIs; fetch only what's needed during path traversal |
-| **Explicit LPM Algorithm** | Route selection via Longest Prefix Match must be explicit and testable, not implicit |
-| **PathStatus.UNKNOWN** | Distinguish "blocked by rule" from "couldn't determine due to permission failure" |
-| **NACL Return Path Verification** | NACLs are stateless - must verify return traffic (ephemeral ports 1024-65535) can reach source |
-| **Reverse Path Routing** | Destination subnet must have route back to source IP to prevent asymmetric routing failures |
-| **Cache TTL (60s)** | Prevents stale cache from causing false negatives after user fixes rules in AWS Console |
-| **Loop Detection** | Network graphs can be cyclic; visited_nodes set prevents infinite traversal |
-
-## Graph Schema
-
-```mermaid
-erDiagram
-    GRAPH_NODE {
-        string id PK "Resource ID (i-xxx, eni-xxx, subnet-xxx)"
-        string node_type "instance | eni | subnet | igw | nat | peering"
-        string vpc_id "Parent VPC"
-        string account_id "Owning AWS account"
-        string region "AWS region"
-        json attributes "Type-specific attributes"
-        timestamp cached_at "When node was fetched"
-    }
-
-    GRAPH_EDGE {
-        string source_id FK "Source node ID"
-        string target_id FK "Target node ID"
-        string edge_type "route | attachment | association"
-        string route_table_id "Associated route table"
-        string cidr_destination "Destination CIDR for route"
-        int prefix_length "For LPM sorting"
-    }
-
-    SECURITY_GROUP {
-        string sg_id PK
-        string vpc_id FK
-        list inbound_rules "Supports CIDR, prefix list, SG ref"
-        list outbound_rules
-    }
-
-    NACL {
-        string nacl_id PK
-        string vpc_id FK
-        list inbound_rules "Ordered by rule_number, IPv4+IPv6"
-        list outbound_rules
-    }
-
-    GRAPH_NODE ||--o{ GRAPH_EDGE : "has_outbound"
-    GRAPH_NODE ||--o{ SECURITY_GROUP : "attached_to"
-    GRAPH_NODE ||--o{ NACL : "associated_with"
-```
-
-## Implementation Status
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1 | ✅ Complete | Project foundation, exceptions, logging |
-| Phase 2 | ✅ Complete | Pydantic data models (graph, AWS resources, results) |
-| Phase 3 | ✅ Complete | Rule evaluators (SG, NACL, Route, CIDR) |
-| Phase 4 | ✅ Complete | AWS client with pagination, retry, cross-account support |
-| Phase 5 | ✅ Complete | Core engine: GraphManager with read-through cache |
-| Phase 6A | ✅ Complete | PathAnalyzer with deterministic LPM traversal |
-| Phase 6B | ✅ Complete | MCP tools and server integration |
-| Phase 7 | ✅ Complete | Integration tests, performance tests, documentation |
-
-## Development
-
-```bash
-# Run tests
-pytest                              # All tests
-pytest tests/unit/                  # Unit tests only
-pytest -k "test_cidr"               # Tests matching pattern
-pytest --cov                        # With coverage
-
-# Type checking
-mypy src/
-
-# Linting
-ruff check src/ tests/
-ruff format src/ tests/
-```
-
-## Project Structure
-
-```
-src/netgraph/
-├── server.py                # MCP server entry point
-├── utils/logging.py         # Structured logging
-├── models/
-│   ├── errors.py            # Exception hierarchy
-│   ├── graph.py             # NodeType, GraphNode, GraphEdge
-│   ├── results.py           # PathStatus, PathAnalysisResult
-│   └── aws_resources.py     # SGRule, NACLRule, Route, etc.
-├── evaluators/
-│   ├── cidr.py              # CIDRMatcher with LRU cache
-│   ├── route.py             # RouteEvaluator with LPM
-│   ├── nacl.py              # NACLEvaluator (stateless)
-│   └── security_group.py    # SecurityGroupEvaluator (stateful)
-├── aws/
-│   ├── client.py            # AWSClient, AWSClientFactory
-│   └── fetcher.py           # EC2Fetcher with auto-pagination
-├── core/
-│   ├── graph_manager.py     # Read-through cache, topology building
-│   ├── path_analyzer.py     # Deterministic LPM traversal
-│   ├── exposure_detector.py # Public internet exposure scanning
-│   └── resource_discovery.py # Tag-based resource lookup
-└── tools/                   # MCP tool implementations
-
-tests/
-├── unit/                    # Unit tests for all modules
-├── integration/             # E2E scenario and MCP protocol tests
-├── performance/             # Large VPC performance benchmarks
-└── fixtures/                # VPC topology and prefix list fixtures
-
-scripts/
-└── verify_live.py           # Live AWS sandbox verification
-
-docs/
-└── examples.md              # Example Claude prompts
-```
-
-## AWS Permissions Required
-
-The IAM principal running NetGraph needs these EC2 read permissions:
+**Add this configuration:**
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ec2:DescribeInstances",
-                "ec2:DescribeSubnets",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeNetworkAcls",
-                "ec2:DescribeRouteTables",
-                "ec2:DescribeInternetGateways",
-                "ec2:DescribeNatGateways",
-                "ec2:DescribeVpcs",
-                "ec2:DescribeVpcPeeringConnections",
-                "ec2:DescribeNetworkInterfaces",
-                "ec2:DescribeTransitGateways",
-                "ec2:DescribeTransitGatewayAttachments",
-                "ec2:GetManagedPrefixListEntries"
-            ],
-            "Resource": "*"
-        }
-    ]
+  "mcpServers": {
+    "netgraph": {
+      "command": "aws-vpc-analyzer",
+      "env": {
+        "AWS_PROFILE": "your-profile",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
 }
 ```
 
-For cross-account analysis, add `sts:AssumeRole` permission and configure trust relationships on target account roles.
+**Alternative using uvx (no pip install required):**
 
-## Live AWS Verification
-
-Before deploying to production, verify NetGraph behavior against a real AWS account:
-
-```bash
-# Run all verification checks
-AWS_PROFILE=dev-sandbox python scripts/verify_live.py
-
-# Verbose output with details
-AWS_PROFILE=dev-sandbox python scripts/verify_live.py --verbose
-
-# Run a single check
-AWS_PROFILE=dev-sandbox python scripts/verify_live.py --check pagination
+```json
+{
+  "mcpServers": {
+    "netgraph": {
+      "command": "uvx",
+      "args": ["aws-vpc-analyzer"],
+      "env": {
+        "AWS_PROFILE": "your-profile",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}
 ```
 
-The verification script validates:
-- Error code formats match expectations
-- Pagination returns complete data sets
-- Prefix list resolution works correctly
-- Response structures match what NetGraph expects
-- Filter behavior is correct
+Restart Claude Desktop after saving.
 
-This helps catch discrepancies between moto mocks and actual AWS behavior.
+</details>
+
+<details>
+<summary><b>Claude Code (CLI)</b></summary>
+
+**Config file location:**
+- Global: `~/.claude.json`
+- Project-specific: `.mcp.json` in your project root
+
+**Add this configuration:**
+
+```json
+{
+  "mcpServers": {
+    "netgraph": {
+      "command": "aws-vpc-analyzer",
+      "env": {
+        "AWS_PROFILE": "your-profile",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code or start a new session.
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Open **Settings** → **MCP** and add:
+
+```json
+{
+  "mcpServers": {
+    "netgraph": {
+      "command": "aws-vpc-analyzer",
+      "env": {
+        "AWS_PROFILE": "your-profile",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}
+```
+
+Restart Cursor after saving.
+
+</details>
+
+For detailed setup instructions including troubleshooting, see the [Installation Guide](docs/installation.md).
+
+### AWS Credentials
+
+NetGraph uses your standard AWS credentials. Ensure you have:
+
+1. **AWS CLI configured** with a profile, or
+2. **Environment variables** set (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), or
+3. **IAM role** attached (for EC2/Lambda environments)
+
+Required IAM permissions: [See AWS Permissions](#aws-permissions) | [Full IAM Policy](docs/iam-policy.md)
+
+## Tools
+
+### `analyze_path`
+
+Analyze network reachability between a source and destination with hop-by-hop evaluation of Security Groups, NACLs, and route tables.
+
+```
+Can instance i-0abc123 reach 10.0.2.50 on port 443?
+```
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `source_id` | string | Yes | EC2 instance ID (`i-xxx`) or ENI ID (`eni-xxx`) |
+| `destination_ip` | string | Yes | IPv4 or IPv6 destination address |
+| `port` | integer | Yes | Destination port (1-65535) |
+| `protocol` | string | No | `tcp`, `udp`, `icmp`, or `-1` for all (default: `tcp`) |
+| `force_refresh` | boolean | No | Bypass cache and fetch fresh data (default: `false`) |
+
+**Returns:** Path status (`REACHABLE`, `BLOCKED`, or `UNKNOWN`), hop-by-hop details, and blocking reason if blocked.
+
+---
+
+### `find_public_exposure`
+
+Scan a VPC to find resources exposed to the public internet on a specific port.
+
+```
+Show me all resources in vpc-12345678 exposed to SSH on port 22
+```
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `vpc_id` | string | Yes | VPC ID to scan (`vpc-xxx`) |
+| `port` | integer | Yes | Port to check for exposure (1-65535) |
+| `protocol` | string | No | `tcp`, `udp`, or `-1` for all (default: `tcp`) |
+| `force_refresh` | boolean | No | Bypass cache (default: `false`) |
+
+**Returns:** List of exposed resources with exposure paths, allowing Security Group rules, and remediation guidance.
+
+---
+
+### `find_resources`
+
+Discover AWS resources by name pattern or tags. Useful when you know a resource by name but need its ID.
+
+```
+Find all production web servers in vpc-12345678
+```
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `vpc_id` | string | Yes | VPC ID to search (`vpc-xxx`) |
+| `tags` | object | No | Tag key-value filters (e.g., `{"Environment": "prod"}`) |
+| `resource_types` | array | No | Filter by type: `instance`, `eni`, `subnet`, `igw`, `nat`, `peering`, `tgw` |
+| `name_pattern` | string | No | Glob pattern for Name tag (e.g., `web-*`, `*-prod-*`) |
+| `max_results` | integer | No | Maximum results to return (default: 50, max: 50) |
+
+**Returns:** Matching resources with IDs, names, IPs, subnets, and tags.
+
+---
+
+### `list_vpcs`
+
+List and search VPCs in your account. Use this when you need a VPC ID but only know the name or tags.
+
+```
+What VPCs do I have? I'm looking for the production one.
+```
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name_pattern` | string | No | Glob pattern for VPC Name tag (e.g., `prod-*`) |
+| `tags` | object | No | Tag key-value filters (e.g., `{"Environment": "production"}`) |
+| `cidr` | string | No | Filter by CIDR block (e.g., `10.0.0.0/16`) |
+
+**Returns:** List of VPCs with IDs, names, CIDRs, state, and tags.
+
+---
+
+### `refresh_topology`
+
+Pre-warm the cache by fetching all resources in specified VPCs. Optional optimization for faster subsequent queries.
+
+```
+Pre-load the topology for vpc-12345678
+```
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `vpc_ids` | array | Yes | List of VPC IDs to pre-warm (`["vpc-xxx", "vpc-yyy"]`) |
+
+**Returns:** Node/edge counts, resources by type, and duration.
+
+---
+
+### `get_cache_stats`
+
+Get cache performance statistics.
+
+**Returns:** Cache hits, misses, hit rate, TTL, and entry counts.
+
+## Configuration
+
+Configure NetGraph via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AWS_REGION` | `us-east-1` | AWS region to query |
+| `AWS_PROFILE` | (none) | AWS CLI profile to use |
+| `NETGRAPH_TTL` | `60` | Cache TTL in seconds |
+| `NETGRAPH_ROLE_ARN` | (none) | IAM role ARN for cross-account access |
+| `NETGRAPH_LOG_LEVEL` | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 
 ## Example Prompts
 
-See [docs/examples.md](docs/examples.md) for example prompts to use with Claude, including:
-- Debugging connection issues
-- Security audits
-- Pre-deployment validation
-- Cross-VPC analysis
-- Troubleshooting intermittent issues
+**Connectivity debugging:**
+> Can my web server i-0abc123 reach the database at 10.0.3.50 on port 5432?
+
+**Security audit:**
+> Find all resources in vpc-prod12345 exposed to the internet on SSH port 22
+
+**Resource discovery:**
+> Find all instances tagged Environment=production in vpc-12345678
+
+**VPC lookup:**
+> List my VPCs - I need to find the one named "production"
+
+**Pre-deployment validation:**
+> Verify that i-gateway123 can reach 10.0.2.100 on port 8080
+
+See [docs/examples.md](docs/examples.md) for more detailed examples.
+
+## How It Works
+
+NetGraph models your VPC as a directed graph:
+
+- **Nodes:** EC2 instances, ENIs, subnets, Internet Gateways, NAT Gateways, VPC Peering connections
+- **Edges:** Routing relationships with CIDR destinations and prefix lengths
+
+When you ask about connectivity, NetGraph:
+
+1. **Resolves** the source to its ENI and subnet
+2. **Evaluates** Security Group egress rules (stateful - only checks outbound)
+3. **Evaluates** NACL outbound rules (stateless - must also check return path)
+4. **Traverses** the route table using Longest Prefix Match (LPM)
+5. **Follows** the path through gateways until reaching the destination
+6. **Evaluates** destination NACL inbound and Security Group ingress rules
+7. **Verifies** return path routing to prevent asymmetric routing failures
+
+## AWS Permissions
+
+NetGraph requires read-only EC2 permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpcPeeringConnections",
+        "ec2:DescribeTransitGateways",
+        "ec2:DescribeTransitGatewayAttachments",
+        "ec2:GetManagedPrefixListEntries"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+For **cross-account analysis**, also add:
+- `sts:AssumeRole` permission
+- Trust relationship on target account roles
+- Set `NETGRAPH_ROLE_ARN` environment variable
+
+## Documentation
+
+- [Installation Guide](docs/installation.md) - Detailed setup instructions
+- [IAM Policy](docs/iam-policy.md) - Copy-paste IAM policies
+- [Examples](docs/examples.md) - Detailed usage examples
+- [Changelog](CHANGELOG.md) - Release notes and version history
 
 ## License
 
 MIT
+
+## Contributing
+
+Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our development process and how to submit pull requests.
