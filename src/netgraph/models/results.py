@@ -116,10 +116,7 @@ class PathAnalysisResult(BaseModel):
             base = f"Traffic Allowed. Path follows {len(self.hops)} hops: {hop_summary}."
 
             if self.return_route_verified and self.return_route_table_id:
-                base += (
-                    f" Note: Return traffic relies on Route Table "
-                    f"{self.return_route_table_id}."
-                )
+                base += f" Note: Return traffic relies on Route Table {self.return_route_table_id}."
 
             return base
 
@@ -128,9 +125,7 @@ class PathAnalysisResult(BaseModel):
                 blocking_resource = self.blocked_at.node_id
                 blocking_type = self.blocked_at.node_type.value
                 reason = self.blocked_at.blocking_reason or "Unknown reason"
-                return (
-                    f"Traffic Blocked at {blocking_type} {blocking_resource}. {reason}"
-                )
+                return f"Traffic Blocked at {blocking_type} {blocking_resource}. {reason}"
             return f"Traffic Blocked. {self.summary}"
 
         else:  # UNKNOWN
@@ -158,9 +153,7 @@ class ResourceDiscoveryResult(BaseModel):
     vpc_id: str
     resources: list[DiscoveredResource]
     total_found: int
-    truncated: bool = Field(
-        False, description="True if more results exist beyond the limit"
-    )
+    truncated: bool = Field(False, description="True if more results exist beyond the limit")
     filters_applied: dict[str, str | list[str] | None] = Field(
         default_factory=dict, description="The search filters that were applied"
     )
@@ -237,6 +230,4 @@ class CacheStats(BaseModel):
     size: int
     oldest_entry: datetime | None = None
     ttl_seconds: int  # Current TTL configuration
-    entries_expiring_soon: int = Field(
-        0, description="Entries expiring within 10 seconds"
-    )
+    entries_expiring_soon: int = Field(0, description="Entries expiring within 10 seconds")

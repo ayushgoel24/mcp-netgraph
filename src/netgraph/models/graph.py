@@ -63,9 +63,7 @@ class SubnetAttributes(BaseModel):
     availability_zone: str
     route_table_id: str
     nacl_id: str
-    is_public: bool = Field(
-        False, description="True if route table has route to IGW"
-    )
+    is_public: bool = Field(False, description="True if route table has route to IGW")
 
 
 class GatewayAttributes(BaseModel):

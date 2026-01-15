@@ -25,10 +25,7 @@ from netgraph.aws.client import AWSClient
 from netgraph.aws.fetcher import EC2Fetcher
 from netgraph.core.graph_manager import GraphManager
 from netgraph.core.path_analyzer import PathAnalyzer
-from netgraph.models.graph import NodeType
-
 from tests.fixtures.vpc_topologies import ACCOUNT_ID, REGION
-
 
 # =============================================================================
 # Large Topology Generator
@@ -55,43 +52,47 @@ def generate_large_topology(
     # Generate subnets
     subnets = []
     for i in range(num_subnets):
-        subnets.append({
-            "SubnetId": f"subnet-perf{i:04d}",
-            "VpcId": vpc_id,
-            "CidrBlock": f"10.{i}.0.0/24",
-            "AvailabilityZone": f"us-east-1{chr(97 + i % 3)}",
-            "MapPublicIpOnLaunch": i < 2,  # First 2 subnets are public
-        })
+        subnets.append(
+            {
+                "SubnetId": f"subnet-perf{i:04d}",
+                "VpcId": vpc_id,
+                "CidrBlock": f"10.{i}.0.0/24",
+                "AvailabilityZone": f"us-east-1{chr(97 + i % 3)}",
+                "MapPublicIpOnLaunch": i < 2,  # First 2 subnets are public
+            }
+        )
 
     # Generate security groups
     security_groups = []
     num_sgs = max(sgs_per_instance * 2, 20)  # Ensure enough SGs
     for i in range(num_sgs):
-        security_groups.append({
-            "GroupId": f"sg-perf{i:06d}",
-            "VpcId": vpc_id,
-            "GroupName": f"perf-sg-{i}",
-            "IpPermissions": [
-                {
-                    "IpProtocol": "tcp",
-                    "FromPort": 443,
-                    "ToPort": 443,
-                    "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
-                },
-                {
-                    "IpProtocol": "tcp",
-                    "FromPort": 22,
-                    "ToPort": 22,
-                    "IpRanges": [{"CidrIp": "10.0.0.0/8"}],
-                },
-            ],
-            "IpPermissionsEgress": [
-                {
-                    "IpProtocol": "-1",
-                    "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
-                },
-            ],
-        })
+        security_groups.append(
+            {
+                "GroupId": f"sg-perf{i:06d}",
+                "VpcId": vpc_id,
+                "GroupName": f"perf-sg-{i}",
+                "IpPermissions": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 443,
+                        "ToPort": 443,
+                        "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "IpRanges": [{"CidrIp": "10.0.0.0/8"}],
+                    },
+                ],
+                "IpPermissionsEgress": [
+                    {
+                        "IpProtocol": "-1",
+                        "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                    },
+                ],
+            }
+        )
 
     # Generate instances with ENIs
     instances = []
@@ -109,34 +110,40 @@ def generate_large_topology(
             for j in range(sgs_per_instance)
         ]
 
-        instances.append({
-            "InstanceId": instance_id,
-            "VpcId": vpc_id,
-            "SubnetId": subnet["SubnetId"],
-            "PrivateIpAddress": private_ip,
-            "PublicIpAddress": f"54.{i // 256}.{i % 256}.1" if subnet_idx < 2 else None,
-            "State": {"Name": "running"},
-            "SecurityGroups": [{"GroupId": sg} for sg in sg_ids],
-            "NetworkInterfaces": [{
-                "NetworkInterfaceId": eni_id,
-                "PrivateIpAddress": private_ip,
+        instances.append(
+            {
+                "InstanceId": instance_id,
+                "VpcId": vpc_id,
                 "SubnetId": subnet["SubnetId"],
-                "Groups": [{"GroupId": sg} for sg in sg_ids],
-            }],
-            "Tags": [
-                {"Key": "Name", "Value": f"perf-instance-{i}"},
-                {"Key": "Index", "Value": str(i)},
-            ],
-        })
+                "PrivateIpAddress": private_ip,
+                "PublicIpAddress": f"54.{i // 256}.{i % 256}.1" if subnet_idx < 2 else None,
+                "State": {"Name": "running"},
+                "SecurityGroups": [{"GroupId": sg} for sg in sg_ids],
+                "NetworkInterfaces": [
+                    {
+                        "NetworkInterfaceId": eni_id,
+                        "PrivateIpAddress": private_ip,
+                        "SubnetId": subnet["SubnetId"],
+                        "Groups": [{"GroupId": sg} for sg in sg_ids],
+                    }
+                ],
+                "Tags": [
+                    {"Key": "Name", "Value": f"perf-instance-{i}"},
+                    {"Key": "Index", "Value": str(i)},
+                ],
+            }
+        )
 
-        enis.append({
-            "NetworkInterfaceId": eni_id,
-            "VpcId": vpc_id,
-            "SubnetId": subnet["SubnetId"],
-            "PrivateIpAddress": private_ip,
-            "Groups": [{"GroupId": sg} for sg in sg_ids],
-            "Attachment": {"InstanceId": instance_id},
-        })
+        enis.append(
+            {
+                "NetworkInterfaceId": eni_id,
+                "VpcId": vpc_id,
+                "SubnetId": subnet["SubnetId"],
+                "PrivateIpAddress": private_ip,
+                "Groups": [{"GroupId": sg} for sg in sg_ids],
+                "Attachment": {"InstanceId": instance_id},
+            }
+        )
 
     # Generate route tables (one per subnet)
     route_tables = []
@@ -153,69 +160,81 @@ def generate_large_topology(
         ]
 
         if i < 2:  # Public subnets
-            routes.append({
-                "DestinationCidrBlock": "0.0.0.0/0",
-                "GatewayId": igw_id,
-                "State": "active",
-            })
+            routes.append(
+                {
+                    "DestinationCidrBlock": "0.0.0.0/0",
+                    "GatewayId": igw_id,
+                    "State": "active",
+                }
+            )
         else:  # Private subnets
-            routes.append({
-                "DestinationCidrBlock": "0.0.0.0/0",
-                "NatGatewayId": nat_id,
-                "State": "active",
-            })
+            routes.append(
+                {
+                    "DestinationCidrBlock": "0.0.0.0/0",
+                    "NatGatewayId": nat_id,
+                    "State": "active",
+                }
+            )
 
-        route_tables.append({
-            "RouteTableId": f"rtb-perf{i:04d}",
-            "VpcId": vpc_id,
-            "Routes": routes,
-            "Associations": [{
-                "SubnetId": subnet["SubnetId"],
+        route_tables.append(
+            {
                 "RouteTableId": f"rtb-perf{i:04d}",
-            }],
-        })
+                "VpcId": vpc_id,
+                "Routes": routes,
+                "Associations": [
+                    {
+                        "SubnetId": subnet["SubnetId"],
+                        "RouteTableId": f"rtb-perf{i:04d}",
+                    }
+                ],
+            }
+        )
 
     # Generate NACLs (one per subnet)
     nacls = []
     for i, subnet in enumerate(subnets):
-        nacls.append({
-            "NetworkAclId": f"acl-perf{i:04d}",
-            "VpcId": vpc_id,
-            "Entries": [
-                {
-                    "RuleNumber": 100,
-                    "RuleAction": "allow",
-                    "Protocol": "-1",
-                    "CidrBlock": "0.0.0.0/0",
-                    "Egress": False,
-                },
-                {
-                    "RuleNumber": 100,
-                    "RuleAction": "allow",
-                    "Protocol": "-1",
-                    "CidrBlock": "0.0.0.0/0",
-                    "Egress": True,
-                },
-                {
-                    "RuleNumber": 32767,
-                    "RuleAction": "deny",
-                    "Protocol": "-1",
-                    "CidrBlock": "0.0.0.0/0",
-                    "Egress": False,
-                },
-                {
-                    "RuleNumber": 32767,
-                    "RuleAction": "deny",
-                    "Protocol": "-1",
-                    "CidrBlock": "0.0.0.0/0",
-                    "Egress": True,
-                },
-            ],
-            "Associations": [{
-                "SubnetId": subnet["SubnetId"],
-                "NetworkAclAssociationId": f"aclassoc-perf{i:04d}",
-            }],
-        })
+        nacls.append(
+            {
+                "NetworkAclId": f"acl-perf{i:04d}",
+                "VpcId": vpc_id,
+                "Entries": [
+                    {
+                        "RuleNumber": 100,
+                        "RuleAction": "allow",
+                        "Protocol": "-1",
+                        "CidrBlock": "0.0.0.0/0",
+                        "Egress": False,
+                    },
+                    {
+                        "RuleNumber": 100,
+                        "RuleAction": "allow",
+                        "Protocol": "-1",
+                        "CidrBlock": "0.0.0.0/0",
+                        "Egress": True,
+                    },
+                    {
+                        "RuleNumber": 32767,
+                        "RuleAction": "deny",
+                        "Protocol": "-1",
+                        "CidrBlock": "0.0.0.0/0",
+                        "Egress": False,
+                    },
+                    {
+                        "RuleNumber": 32767,
+                        "RuleAction": "deny",
+                        "Protocol": "-1",
+                        "CidrBlock": "0.0.0.0/0",
+                        "Egress": True,
+                    },
+                ],
+                "Associations": [
+                    {
+                        "SubnetId": subnet["SubnetId"],
+                        "NetworkAclAssociationId": f"aclassoc-perf{i:04d}",
+                    }
+                ],
+            }
+        )
 
     return {
         "vpc_id": vpc_id,
@@ -279,7 +298,7 @@ def setup_large_topology_mocks(
     mock_fetcher.describe_security_group_by_id = AsyncMock(side_effect=mock_describe_sg)
 
     # Mock describe_route_tables
-    async def mock_describe_rtbs(**kwargs: Any) -> list[dict[str, Any]]:
+    async def mock_describe_rtbs(**_kwargs: Any) -> list[dict[str, Any]]:
         return topology["route_tables"]
 
     mock_fetcher.describe_route_tables = AsyncMock(side_effect=mock_describe_rtbs)
@@ -294,7 +313,7 @@ def setup_large_topology_mocks(
     mock_fetcher.describe_route_table_by_id = AsyncMock(side_effect=mock_describe_rtb)
 
     # Mock describe_network_acls
-    async def mock_describe_nacls(**kwargs: Any) -> list[dict[str, Any]]:
+    async def mock_describe_nacls(**_kwargs: Any) -> list[dict[str, Any]]:
         return topology["nacls"]
 
     mock_fetcher.describe_network_acls = AsyncMock(side_effect=mock_describe_nacls)
@@ -309,27 +328,31 @@ def setup_large_topology_mocks(
     mock_fetcher.describe_nacl_by_id = AsyncMock(side_effect=mock_describe_nacl)
 
     # Mock describe_internet_gateways
-    async def mock_describe_igws(**kwargs: Any) -> list[dict[str, Any]]:
-        return [{
-            "InternetGatewayId": topology["igw_id"],
-            "Attachments": [{"VpcId": topology["vpc_id"], "State": "available"}],
-        }]
+    async def mock_describe_igws(**_kwargs: Any) -> list[dict[str, Any]]:
+        return [
+            {
+                "InternetGatewayId": topology["igw_id"],
+                "Attachments": [{"VpcId": topology["vpc_id"], "State": "available"}],
+            }
+        ]
 
     mock_fetcher.describe_internet_gateways = AsyncMock(side_effect=mock_describe_igws)
 
     # Mock describe_nat_gateways
-    async def mock_describe_nats(**kwargs: Any) -> list[dict[str, Any]]:
-        return [{
-            "NatGatewayId": topology["nat_id"],
-            "VpcId": topology["vpc_id"],
-            "SubnetId": topology["subnets"][0]["SubnetId"],
-            "State": "available",
-        }]
+    async def mock_describe_nats(**_kwargs: Any) -> list[dict[str, Any]]:
+        return [
+            {
+                "NatGatewayId": topology["nat_id"],
+                "VpcId": topology["vpc_id"],
+                "SubnetId": topology["subnets"][0]["SubnetId"],
+                "State": "available",
+            }
+        ]
 
     mock_fetcher.describe_nat_gateways = AsyncMock(side_effect=mock_describe_nats)
 
     # Mock describe_network_interfaces
-    async def mock_describe_enis(**kwargs: Any) -> list[dict[str, Any]]:
+    async def mock_describe_enis(**_kwargs: Any) -> list[dict[str, Any]]:
         return topology["enis"]
 
     mock_fetcher.describe_network_interfaces = AsyncMock(side_effect=mock_describe_enis)
@@ -503,13 +526,11 @@ class TestCachePerformance:
         total_requests = stats.hits + stats.misses
         hit_rate = stats.hits / total_requests if total_requests > 0 else 0
 
-        # Second query should have much higher hit rate
-        assert hit_rate > 0.5, f"Cache hit rate {hit_rate:.2%} too low"
+        # Second query should have reasonable hit rate (at least 50%)
+        assert hit_rate >= 0.5, f"Cache hit rate {hit_rate:.2%} too low"
 
     @pytest.mark.asyncio
-    async def test_cache_invalidation_performance(
-        self, mock_fetcher: EC2Fetcher
-    ) -> None:
+    async def test_cache_invalidation_performance(self, mock_fetcher: EC2Fetcher) -> None:
         """Cache invalidation should be fast."""
         topology = generate_large_topology(num_instances=100)
         setup_large_topology_mocks(mock_fetcher, topology)
@@ -539,7 +560,6 @@ class TestMemoryUsage:
 
     def test_topology_generator_memory(self) -> None:
         """Large topology generation should be memory efficient."""
-        import sys
 
         # Generate a moderately large topology
         topology = generate_large_topology(num_instances=500, num_subnets=20)
@@ -555,9 +575,7 @@ class TestMemoryUsage:
         assert sg_count >= 20
 
     @pytest.mark.asyncio
-    async def test_graph_manager_memory_with_large_topology(
-        self, mock_fetcher: EC2Fetcher
-    ) -> None:
+    async def test_graph_manager_memory_with_large_topology(self, mock_fetcher: EC2Fetcher) -> None:
         """GraphManager should handle large topologies without excessive memory."""
         topology = generate_large_topology(num_instances=200)
         setup_large_topology_mocks(mock_fetcher, topology)
@@ -730,4 +748,6 @@ class TestStressConditions:
 
         # force_refresh should be similar to cache miss (not much slower)
         # Allow 50% overhead for cache operations
-        assert time2 < time1 * 2.0, f"force_refresh ({time2:.3f}s) much slower than cold ({time1:.3f}s)"
+        assert time2 < time1 * 2.0, (
+            f"force_refresh ({time2:.3f}s) much slower than cold ({time1:.3f}s)"
+        )

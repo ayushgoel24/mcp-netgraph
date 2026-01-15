@@ -84,9 +84,7 @@ class EC2Fetcher:
                     raise detect_error_type(e) from e
 
                 if attempt == config.max_retries:
-                    logger.error(
-                        f"{operation_name} failed after {config.max_retries + 1} attempts"
-                    )
+                    logger.error(f"{operation_name} failed after {config.max_retries + 1} attempts")
                     raise detect_error_type(e) from e
 
                 # Calculate delay with jitter
@@ -128,9 +126,7 @@ class EC2Fetcher:
 
         for page in paginator.paginate(**params):
             for reservation in page.get("Reservations", []):
-                instances.extend(
-                    cast("list[dict[str, Any]]", reservation.get("Instances", []))
-                )
+                instances.extend(cast("list[dict[str, Any]]", reservation.get("Instances", [])))
 
         logger.debug(f"Fetched {len(instances)} instances")
         return instances
@@ -226,9 +222,7 @@ class EC2Fetcher:
         security_groups: list[dict[str, Any]] = []
 
         for page in paginator.paginate(**params):
-            security_groups.extend(
-                cast("list[dict[str, Any]]", page.get("SecurityGroups", []))
-            )
+            security_groups.extend(cast("list[dict[str, Any]]", page.get("SecurityGroups", [])))
 
         logger.debug(f"Fetched {len(security_groups)} security groups")
         return security_groups
@@ -322,9 +316,7 @@ class EC2Fetcher:
         route_tables: list[dict[str, Any]] = []
 
         for page in paginator.paginate(**params):
-            route_tables.extend(
-                cast("list[dict[str, Any]]", page.get("RouteTables", []))
-            )
+            route_tables.extend(cast("list[dict[str, Any]]", page.get("RouteTables", [])))
 
         logger.debug(f"Fetched {len(route_tables)} route tables")
         return route_tables
@@ -393,9 +385,7 @@ class EC2Fetcher:
             List of internet gateway dictionaries from AWS API
         """
         return await self._execute_with_retry(
-            lambda: self._paginate_internet_gateways(
-                internet_gateway_ids, vpc_id, filters
-            ),
+            lambda: self._paginate_internet_gateways(internet_gateway_ids, vpc_id, filters),
             "describe_internet_gateways",
         )
 
@@ -462,9 +452,7 @@ class EC2Fetcher:
         peerings: list[dict[str, Any]] = []
 
         for page in paginator.paginate(**params):
-            peerings.extend(
-                cast("list[dict[str, Any]]", page.get("VpcPeeringConnections", []))
-            )
+            peerings.extend(cast("list[dict[str, Any]]", page.get("VpcPeeringConnections", [])))
 
         logger.debug(f"Fetched {len(peerings)} VPC peering connections")
         return peerings
@@ -484,9 +472,7 @@ class EC2Fetcher:
             List of VPC peering connection dictionaries from AWS API
         """
         return await self._execute_with_retry(
-            lambda: self._paginate_vpc_peering_connections(
-                vpc_peering_connection_ids, filters
-            ),
+            lambda: self._paginate_vpc_peering_connections(vpc_peering_connection_ids, filters),
             "describe_vpc_peering_connections",
         )
 
@@ -506,9 +492,7 @@ class EC2Fetcher:
         enis: list[dict[str, Any]] = []
 
         for page in paginator.paginate(**params):
-            enis.extend(
-                cast("list[dict[str, Any]]", page.get("NetworkInterfaces", []))
-            )
+            enis.extend(cast("list[dict[str, Any]]", page.get("NetworkInterfaces", [])))
 
         logger.debug(f"Fetched {len(enis)} network interfaces")
         return enis
@@ -621,8 +605,7 @@ class EC2Fetcher:
             # _execute_with_retry transforms AccessDenied to PermissionDeniedError
             raise PrefixListResolutionError(
                 prefix_list_id=prefix_list_id,
-                reason=f"Access denied: {e}. "
-                "Verify ec2:GetManagedPrefixListEntries permission.",
+                reason=f"Access denied: {e}. Verify ec2:GetManagedPrefixListEntries permission.",
             ) from e
         except ClientError as e:
             # Fallback for any errors not transformed by _execute_with_retry
@@ -700,15 +683,11 @@ class EC2Fetcher:
 
         all_filters = list(filters or [])
         if transit_gateway_id:
-            all_filters.append(
-                {"Name": "transit-gateway-id", "Values": [transit_gateway_id]}
-            )
+            all_filters.append({"Name": "transit-gateway-id", "Values": [transit_gateway_id]})
         if all_filters:
             params["Filters"] = all_filters
 
-        paginator = self.client.ec2.get_paginator(
-            "describe_transit_gateway_attachments"
-        )
+        paginator = self.client.ec2.get_paginator("describe_transit_gateway_attachments")
         attachments: list[dict[str, Any]] = []
 
         for page in paginator.paginate(**params):
@@ -818,9 +797,7 @@ class EC2Fetcher:
             ENI dictionary or None if not found
         """
         try:
-            enis = await self.describe_network_interfaces(
-                network_interface_ids=[eni_id]
-            )
+            enis = await self.describe_network_interfaces(network_interface_ids=[eni_id])
             return enis[0] if enis else None
         except ResourceNotFoundError:
             return None
@@ -838,9 +815,7 @@ class EC2Fetcher:
             Route table dictionary or None if not found
         """
         try:
-            route_tables = await self.describe_route_tables(
-                route_table_ids=[route_table_id]
-            )
+            route_tables = await self.describe_route_tables(route_table_ids=[route_table_id])
             return route_tables[0] if route_tables else None
         except ResourceNotFoundError:
             return None

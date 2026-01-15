@@ -290,9 +290,7 @@ class TestSecurityGroupEvaluatorPrefixLists:
             outbound_rules=[],
         )
 
-        resolver = MockPrefixListResolver(
-            {"pl-office-ips": ["10.0.0.0/8", "192.168.0.0/16"]}
-        )
+        resolver = MockPrefixListResolver({"pl-office-ips": ["10.0.0.0/8", "192.168.0.0/16"]})
 
         result = await SecurityGroupEvaluator.evaluate_ingress(
             security_groups=[sg],

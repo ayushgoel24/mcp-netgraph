@@ -95,9 +95,7 @@ class ResourceDiscovery:
 
         # Search each resource type
         if NodeType.INSTANCE in target_types:
-            instances = await self._find_instances(
-                vpc_id, tags, name_pattern
-            )
+            instances = await self._find_instances(vpc_id, tags, name_pattern)
             all_resources.extend(instances)
 
         if NodeType.ENI in target_types:
@@ -117,9 +115,7 @@ class ResourceDiscovery:
             all_resources.extend(nats)
 
         if NodeType.VPC_PEERING in target_types:
-            peerings = await self._find_peering_connections(
-                vpc_id, tags, name_pattern
-            )
+            peerings = await self._find_peering_connections(vpc_id, tags, name_pattern)
             all_resources.extend(peerings)
 
         if NodeType.TRANSIT_GATEWAY in target_types:
@@ -146,8 +142,7 @@ class ResourceDiscovery:
             filters_applied["name_pattern"] = name_pattern
 
         logger.info(
-            f"Found {total_found} resources, returning {len(all_resources)} "
-            f"(truncated={truncated})"
+            f"Found {total_found} resources, returning {len(all_resources)} (truncated={truncated})"
         )
 
         return ResourceDiscoveryResult(
@@ -207,11 +202,7 @@ class ResourceDiscovery:
         if not filter_tags:
             return True
 
-        for key, value in filter_tags.items():
-            if resource_tags.get(key) != value:
-                return False
-
-        return True
+        return all(resource_tags.get(key) == value for key, value in filter_tags.items())
 
     def _matches_name_pattern(
         self,
@@ -248,11 +239,7 @@ class ResourceDiscovery:
         if not tags_list:
             return {}
 
-        return {
-            tag.get("Key", ""): tag.get("Value", "")
-            for tag in tags_list
-            if tag.get("Key")
-        }
+        return {tag.get("Key", ""): tag.get("Value", "") for tag in tags_list if tag.get("Key")}
 
     async def _find_instances(
         self,
@@ -635,9 +622,7 @@ class ResourceDiscovery:
 
         # Get unique TGW IDs
         tgw_ids: list[str] = [
-            tgw_id
-            for att in attachments
-            if (tgw_id := att.get("TransitGatewayId")) is not None
+            tgw_id for att in attachments if (tgw_id := att.get("TransitGatewayId")) is not None
         ]
 
         if not tgw_ids:
@@ -647,9 +632,7 @@ class ResourceDiscovery:
         unique_tgw_ids = list(set(tgw_ids))
 
         # Fetch TGW details
-        tgws = await self.fetcher.describe_transit_gateways(
-            transit_gateway_ids=unique_tgw_ids
-        )
+        tgws = await self.fetcher.describe_transit_gateways(transit_gateway_ids=unique_tgw_ids)
 
         for tgw in tgws:
             tgw_id = tgw.get("TransitGatewayId", "")

@@ -10,10 +10,9 @@ AWS clients and GraphManager across all tool handlers.
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -21,15 +20,19 @@ from netgraph.aws.client import AWSClientFactory, RetryConfig
 from netgraph.aws.fetcher import EC2Fetcher
 from netgraph.core.graph_manager import GraphManager
 from netgraph.core.path_analyzer import PathAnalyzer
-from netgraph.models import (
-    CacheStats,
-    PathAnalysisResult,
-    PublicExposureResult,
-    ResourceDiscoveryResult,
-    TopologyRefreshResult,
-)
 from netgraph.models.errors import NetGraphError, ValidationError
 from netgraph.utils.logging import get_logger, setup_logging
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from netgraph.models import (
+        CacheStats,
+        PathAnalysisResult,
+        PublicExposureResult,
+        ResourceDiscoveryResult,
+        TopologyRefreshResult,
+    )
 
 logger = get_logger(__name__)
 
@@ -59,7 +62,7 @@ class AppContext:
 
 
 @asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
     """Initialize and clean up application resources.
 
     This lifespan manager:
@@ -465,9 +468,7 @@ async def find_resources(
 
     # Cap max_results to prevent context overflow
     if max_results > DEFAULT_MAX_RESULTS:
-        logger.warning(
-            f"max_results {max_results} exceeds limit, capping to {DEFAULT_MAX_RESULTS}"
-        )
+        logger.warning(f"max_results {max_results} exceeds limit, capping to {DEFAULT_MAX_RESULTS}")
         max_results = DEFAULT_MAX_RESULTS
 
     if max_results < 1:
@@ -587,14 +588,16 @@ async def list_vpcs(
         result_vpcs = []
         for vpc in filtered_vpcs:
             vpc_tags = {t["Key"]: t["Value"] for t in vpc.get("Tags", [])}
-            result_vpcs.append({
-                "id": vpc["VpcId"],
-                "name": vpc_tags.get("Name"),
-                "cidr": vpc.get("CidrBlock"),
-                "state": vpc.get("State"),
-                "is_default": vpc.get("IsDefault", False),
-                "tags": vpc_tags if vpc_tags else None,
-            })
+            result_vpcs.append(
+                {
+                    "id": vpc["VpcId"],
+                    "name": vpc_tags.get("Name"),
+                    "cidr": vpc.get("CidrBlock"),
+                    "state": vpc.get("State"),
+                    "is_default": vpc.get("IsDefault", False),
+                    "tags": vpc_tags if vpc_tags else None,
+                }
+            )
 
         # Build filters applied summary
         filters_applied: dict[str, Any] = {}
@@ -670,9 +673,7 @@ def _path_result_to_dict(result: PathAnalysisResult) -> dict[str, Any]:
             "status": hop.status.value,
             "sg_eval": _rule_eval_to_dict(hop.sg_eval) if hop.sg_eval else None,
             "nacl_eval": _rule_eval_to_dict(hop.nacl_eval) if hop.nacl_eval else None,
-            "route_eval": (
-                _rule_eval_to_dict(hop.route_eval) if hop.route_eval else None
-            ),
+            "route_eval": (_rule_eval_to_dict(hop.route_eval) if hop.route_eval else None),
         }
         for hop in result.hops
     ]
@@ -684,9 +685,7 @@ def _path_result_to_dict(result: PathAnalysisResult) -> dict[str, Any]:
             "node_id": result.blocked_at.node_id,
             "node_type": result.blocked_at.node_type.value,
             "sg_eval": (
-                _rule_eval_to_dict(result.blocked_at.sg_eval)
-                if result.blocked_at.sg_eval
-                else None
+                _rule_eval_to_dict(result.blocked_at.sg_eval) if result.blocked_at.sg_eval else None
             ),
             "nacl_eval": (
                 _rule_eval_to_dict(result.blocked_at.nacl_eval)
@@ -749,9 +748,7 @@ def _exposure_result_to_dict(result: PublicExposureResult) -> dict[str, Any]:
             {
                 "resource_id": r.resource_id,
                 "resource_type": (
-                    r.resource_type.value
-                    if hasattr(r.resource_type, "value")
-                    else r.resource_type
+                    r.resource_type.value if hasattr(r.resource_type, "value") else r.resource_type
                 ),
                 "name": r.name,
                 "private_ip": r.private_ip,
@@ -774,9 +771,7 @@ def _discovery_result_to_dict(result: ResourceDiscoveryResult) -> dict[str, Any]
             {
                 "id": r.id,
                 "resource_type": (
-                    r.resource_type.value
-                    if hasattr(r.resource_type, "value")
-                    else r.resource_type
+                    r.resource_type.value if hasattr(r.resource_type, "value") else r.resource_type
                 ),
                 "name": r.name,
                 "tags": r.tags,
@@ -829,9 +824,7 @@ def main() -> None:
     # Cast to the expected Literal type
     from typing import Literal, cast
 
-    log_level = cast(
-        "Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']", log_level_str
-    )
+    log_level = cast("Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']", log_level_str)
     setup_logging(level=log_level)
 
     logger.info("Starting NetGraph MCP server")

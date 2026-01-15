@@ -72,9 +72,7 @@ class TestFindLongestPrefixMatch:
         """LPM works with IPv6 routes."""
         routes = [
             Route(destination_cidr="2001:db8::/32", target_id="local", target_type="local"),
-            Route(
-                destination_cidr="2001:db8:abcd::/48", target_id="pcx-1", target_type="peering"
-            ),
+            Route(destination_cidr="2001:db8:abcd::/48", target_id="pcx-1", target_type="peering"),
             Route(destination_cidr="::/0", target_id="igw-1", target_type="igw"),
         ]
         result = find_longest_prefix_match("2001:db8:abcd::1", routes)

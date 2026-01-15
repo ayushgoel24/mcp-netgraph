@@ -305,9 +305,7 @@ class GraphManager:
         # Get subnet associations
         associations = rt_data.get("Associations", [])
         subnet_associations = [
-            assoc.get("SubnetId")
-            for assoc in associations
-            if assoc.get("SubnetId") is not None
+            assoc.get("SubnetId") for assoc in associations if assoc.get("SubnetId") is not None
         ]
 
         rt = RouteTable(
@@ -358,9 +356,7 @@ class GraphManager:
         # Get subnet associations
         associations = nacl_data.get("Associations", [])
         subnet_associations = [
-            assoc.get("SubnetId")
-            for assoc in associations
-            if assoc.get("SubnetId") is not None
+            assoc.get("SubnetId") for assoc in associations if assoc.get("SubnetId") is not None
         ]
 
         nacl = NetworkACL(
@@ -497,9 +493,7 @@ class GraphManager:
             self._nacl_cache,
         ]:
             expired_keys = [
-                key
-                for key, entry in cache.items()
-                if entry.is_expired(self._ttl_seconds)
+                key for key, entry in cache.items() if entry.is_expired(self._ttl_seconds)
             ]
             for key in expired_keys:
                 del cache[key]
@@ -716,9 +710,7 @@ class GraphManager:
             for rt_data in route_tables:
                 rt = self._rt_data_to_model(rt_data)
                 if rt:
-                    await self._put_in_cache(
-                        self._route_table_cache, rt.route_table_id, rt
-                    )
+                    await self._put_in_cache(self._route_table_cache, rt.route_table_id, rt)
                     resources_by_type["route_tables"] += 1
         elif isinstance(route_tables, Exception):
             warnings.append(f"Failed to fetch route tables: {route_tables}")
@@ -837,21 +829,13 @@ class GraphManager:
             if node.instance_attrs is not None:
                 if node.instance_attrs.private_ip == ip:
                     # Return the primary ENI for this instance
-                    return await self.resolve_to_eni(
-                        node.id, force_refresh=force_refresh
-                    )
+                    return await self.resolve_to_eni(node.id, force_refresh=force_refresh)
                 if node.instance_attrs.public_ip == ip:
-                    return await self.resolve_to_eni(
-                        node.id, force_refresh=force_refresh
-                    )
+                    return await self.resolve_to_eni(node.id, force_refresh=force_refresh)
                 if node.instance_attrs.private_ipv6 == ip:
-                    return await self.resolve_to_eni(
-                        node.id, force_refresh=force_refresh
-                    )
+                    return await self.resolve_to_eni(node.id, force_refresh=force_refresh)
                 if node.instance_attrs.public_ipv6 == ip:
-                    return await self.resolve_to_eni(
-                        node.id, force_refresh=force_refresh
-                    )
+                    return await self.resolve_to_eni(node.id, force_refresh=force_refresh)
 
         # If not found in cache and force_refresh is True,
         # we could query AWS, but that would require VPC context
@@ -932,9 +916,7 @@ class GraphManager:
 
     async def _fetch_igw(self, igw_id: str) -> GraphNode | None:
         """Fetch an Internet Gateway and convert to GraphNode."""
-        igws = await self.fetcher.describe_internet_gateways(
-            internet_gateway_ids=[igw_id]
-        )
+        igws = await self.fetcher.describe_internet_gateways(internet_gateway_ids=[igw_id])
         if not igws:
             return None
 
@@ -989,9 +971,7 @@ class GraphManager:
 
     async def _fetch_tgw(self, tgw_id: str) -> GraphNode | None:
         """Fetch a Transit Gateway and convert to GraphNode."""
-        tgws = await self.fetcher.describe_transit_gateways(
-            transit_gateway_ids=[tgw_id]
-        )
+        tgws = await self.fetcher.describe_transit_gateways(transit_gateway_ids=[tgw_id])
         if not tgws:
             return None
 
@@ -1042,10 +1022,7 @@ class GraphManager:
         sg_ids = [sg_id for sg_id in sg_ids if sg_id]
 
         # Get ENIs
-        eni_ids = [
-            eni.get("NetworkInterfaceId", "")
-            for eni in data.get("NetworkInterfaces", [])
-        ]
+        eni_ids = [eni.get("NetworkInterfaceId", "") for eni in data.get("NetworkInterfaces", [])]
         eni_ids = [eni_id for eni_id in eni_ids if eni_id]
 
         # Get tags
@@ -1237,9 +1214,7 @@ class GraphManager:
 
         associations = data.get("Associations", [])
         subnet_associations = [
-            assoc.get("SubnetId")
-            for assoc in associations
-            if assoc.get("SubnetId") is not None
+            assoc.get("SubnetId") for assoc in associations if assoc.get("SubnetId") is not None
         ]
 
         return NetworkACL(
@@ -1261,9 +1236,7 @@ class GraphManager:
 
         associations = data.get("Associations", [])
         subnet_associations = [
-            assoc.get("SubnetId")
-            for assoc in associations
-            if assoc.get("SubnetId") is not None
+            assoc.get("SubnetId") for assoc in associations if assoc.get("SubnetId") is not None
         ]
 
         return RouteTable(
@@ -1436,9 +1409,7 @@ class GraphManager:
 
         return routes
 
-    def _get_route_target(
-        self, route_data: dict[str, Any]
-    ) -> tuple[str | None, str | None]:
+    def _get_route_target(self, route_data: dict[str, Any]) -> tuple[str | None, str | None]:
         """Extract route target ID and type from AWS route data."""
         # Check various target types in order of precedence
         if route_data.get("GatewayId"):
@@ -1467,9 +1438,7 @@ class GraphManager:
 
         return None, None
 
-    async def _get_route_table_for_subnet(
-        self, subnet_id: str, vpc_id: str
-    ) -> str | None:
+    async def _get_route_table_for_subnet(self, subnet_id: str, vpc_id: str) -> str | None:
         """Get the route table ID associated with a subnet."""
         # First check for explicit association
         route_tables = await self.fetcher.describe_route_tables(vpc_id=vpc_id)
@@ -1529,9 +1498,7 @@ class GraphManager:
 
         return mapping
 
-    def _build_subnet_nacl_map(
-        self, nacls: list[dict[str, Any]] | BaseException
-    ) -> dict[str, str]:
+    def _build_subnet_nacl_map(self, nacls: list[dict[str, Any]] | BaseException) -> dict[str, str]:
         """Build a mapping of subnet ID to NACL ID."""
         mapping: dict[str, str] = {}
         default_nacl_id: str | None = None

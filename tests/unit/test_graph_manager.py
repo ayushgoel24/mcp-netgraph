@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Address
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,13 +15,11 @@ from netgraph.core.graph_manager import CacheEntry, GraphManager
 from netgraph.models import (
     EdgeType,
     GraphEdge,
-    GraphNode,
     NetworkACL,
     NodeType,
     RouteTable,
     SecurityGroup,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -390,9 +387,7 @@ class TestTTLExpiry:
         """Expired cache entry triggers refresh."""
         # Use very short TTL
         gm = GraphManager(fetcher=mock_fetcher, ttl_seconds=0)
-        mock_fetcher.describe_instances_by_id = AsyncMock(
-            return_value=sample_instance_data
-        )
+        mock_fetcher.describe_instances_by_id = AsyncMock(return_value=sample_instance_data)
 
         # First call
         await gm.get_node("i-1234567890abcdef0")
@@ -414,9 +409,7 @@ class TestTTLExpiry:
         """invalidate_expired removes entries past TTL."""
         # Add an entry with old timestamp
         old_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        graph_manager._node_cache["old-entry"] = CacheEntry(
-            data="test", cached_at=old_time
-        )
+        graph_manager._node_cache["old-entry"] = CacheEntry(data="test", cached_at=old_time)
         graph_manager._node_cache["new-entry"] = CacheEntry(data="test")
 
         removed = graph_manager.invalidate_expired()
@@ -480,15 +473,11 @@ class TestNodeFetch:
         sample_nacl_data: dict[str, Any],
     ) -> None:
         """Fetches subnet and creates GraphNode with associations."""
-        graph_manager.fetcher.describe_subnet_by_id = AsyncMock(
-            return_value=sample_subnet_data
-        )
+        graph_manager.fetcher.describe_subnet_by_id = AsyncMock(return_value=sample_subnet_data)
         graph_manager.fetcher.describe_route_tables = AsyncMock(
             return_value=[sample_route_table_data]
         )
-        graph_manager.fetcher.describe_network_acls = AsyncMock(
-            return_value=[sample_nacl_data]
-        )
+        graph_manager.fetcher.describe_network_acls = AsyncMock(return_value=[sample_nacl_data])
 
         node = await graph_manager.get_node("subnet-12345678")
 
@@ -525,9 +514,7 @@ class TestSecurityGroup:
         sample_sg_data: dict[str, Any],
     ) -> None:
         """Fetches security group and parses rules."""
-        graph_manager.fetcher.describe_security_group_by_id = AsyncMock(
-            return_value=sample_sg_data
-        )
+        graph_manager.fetcher.describe_security_group_by_id = AsyncMock(return_value=sample_sg_data)
 
         sg = await graph_manager.get_security_group("sg-12345678")
 
@@ -544,9 +531,7 @@ class TestSecurityGroup:
         sample_sg_data: dict[str, Any],
     ) -> None:
         """Security group is cached after fetch."""
-        graph_manager.fetcher.describe_security_group_by_id = AsyncMock(
-            return_value=sample_sg_data
-        )
+        graph_manager.fetcher.describe_security_group_by_id = AsyncMock(return_value=sample_sg_data)
 
         await graph_manager.get_security_group("sg-12345678")
         await graph_manager.get_security_group("sg-12345678")
@@ -596,9 +581,7 @@ class TestNACL:
         sample_nacl_data: dict[str, Any],
     ) -> None:
         """Fetches NACL and parses rules."""
-        graph_manager.fetcher.describe_nacl_by_id = AsyncMock(
-            return_value=sample_nacl_data
-        )
+        graph_manager.fetcher.describe_nacl_by_id = AsyncMock(return_value=sample_nacl_data)
 
         nacl = await graph_manager.get_nacl("acl-12345678")
 
@@ -763,18 +746,10 @@ class TestBuildTopology:
     ) -> None:
         """build_topology pre-warms cache."""
         # Mock all the fetcher methods
-        graph_manager.fetcher.describe_instances = AsyncMock(
-            return_value=[sample_instance_data]
-        )
-        graph_manager.fetcher.describe_subnets = AsyncMock(
-            return_value=[sample_subnet_data]
-        )
-        graph_manager.fetcher.describe_security_groups = AsyncMock(
-            return_value=[sample_sg_data]
-        )
-        graph_manager.fetcher.describe_network_acls = AsyncMock(
-            return_value=[sample_nacl_data]
-        )
+        graph_manager.fetcher.describe_instances = AsyncMock(return_value=[sample_instance_data])
+        graph_manager.fetcher.describe_subnets = AsyncMock(return_value=[sample_subnet_data])
+        graph_manager.fetcher.describe_security_groups = AsyncMock(return_value=[sample_sg_data])
+        graph_manager.fetcher.describe_network_acls = AsyncMock(return_value=[sample_nacl_data])
         graph_manager.fetcher.describe_route_tables = AsyncMock(
             return_value=[sample_route_table_data]
         )
@@ -796,27 +771,17 @@ class TestBuildTopology:
     ) -> None:
         """build_topology captures fetch failures as warnings."""
         # Individual fetch failures are captured as warnings, not overall failure
-        graph_manager.fetcher.describe_instances = AsyncMock(
-            side_effect=Exception("API error")
-        )
-        graph_manager.fetcher.describe_subnets = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        graph_manager.fetcher.describe_instances = AsyncMock(side_effect=Exception("API error"))
+        graph_manager.fetcher.describe_subnets = AsyncMock(side_effect=Exception("API error"))
         graph_manager.fetcher.describe_security_groups = AsyncMock(
             side_effect=Exception("API error")
         )
-        graph_manager.fetcher.describe_network_acls = AsyncMock(
-            side_effect=Exception("API error")
-        )
-        graph_manager.fetcher.describe_route_tables = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        graph_manager.fetcher.describe_network_acls = AsyncMock(side_effect=Exception("API error"))
+        graph_manager.fetcher.describe_route_tables = AsyncMock(side_effect=Exception("API error"))
         graph_manager.fetcher.describe_internet_gateways = AsyncMock(
             side_effect=Exception("API error")
         )
-        graph_manager.fetcher.describe_nat_gateways = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        graph_manager.fetcher.describe_nat_gateways = AsyncMock(side_effect=Exception("API error"))
         graph_manager.fetcher.describe_network_interfaces = AsyncMock(
             side_effect=Exception("API error")
         )
@@ -912,15 +877,11 @@ class TestHelperMethods:
         sample_nacl_data: dict[str, Any],
     ) -> None:
         """get_subnet is convenience method for subnet nodes."""
-        graph_manager.fetcher.describe_subnet_by_id = AsyncMock(
-            return_value=sample_subnet_data
-        )
+        graph_manager.fetcher.describe_subnet_by_id = AsyncMock(return_value=sample_subnet_data)
         graph_manager.fetcher.describe_route_tables = AsyncMock(
             return_value=[sample_route_table_data]
         )
-        graph_manager.fetcher.describe_network_acls = AsyncMock(
-            return_value=[sample_nacl_data]
-        )
+        graph_manager.fetcher.describe_network_acls = AsyncMock(return_value=[sample_nacl_data])
 
         node = await graph_manager.get_subnet("subnet-12345678")
 

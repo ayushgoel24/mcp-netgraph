@@ -355,8 +355,7 @@ def build_get_managed_prefix_list_entries_response(
     """Build a mock get_managed_prefix_list_entries response."""
     return {
         "Entries": [
-            {"Cidr": entry.cidr, "Description": entry.description}
-            for entry in prefix_list.entries
+            {"Cidr": entry.cidr, "Description": entry.description} for entry in prefix_list.entries
         ]
     }
 
