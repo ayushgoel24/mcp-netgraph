@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ipaddress import IPv4Address
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,7 +16,6 @@ from netgraph.models import (
     ENIAttributes,
     GatewayAttributes,
     GraphNode,
-    HopResult,
     NACLRule,
     NetworkACL,
     NodeType,
@@ -31,7 +30,6 @@ from netgraph.models.errors import (
     CrossAccountSGResolutionError,
     PermissionDeniedError,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -271,11 +269,13 @@ class TestTraversalContext:
     def test_default_initialization(self) -> None:
         """Test TraversalContext with defaults."""
         ctx = TraversalContext(
+            source_id="i-12345",
             source_ip="10.0.1.100",
             dest_ip="10.0.2.50",
             port=443,
             protocol="tcp",
         )
+        assert ctx.source_id == "i-12345"
         assert ctx.source_ip == "10.0.1.100"
         assert ctx.dest_ip == "10.0.2.50"
         assert ctx.port == 443
@@ -288,6 +288,7 @@ class TestTraversalContext:
     def test_visited_nodes_tracking(self) -> None:
         """Test visited nodes set behavior."""
         ctx = TraversalContext(
+            source_id="i-12345",
             source_ip="10.0.1.100",
             dest_ip="10.0.2.50",
             port=443,
@@ -369,7 +370,7 @@ class TestReachablePaths:
         # Mock the graph manager methods
         path_analyzer.graph.resolve_to_eni = AsyncMock(return_value=source_eni)
 
-        def get_subnet_mock(subnet_id: str, **kwargs: Any) -> GraphNode | None:
+        def get_subnet_mock(subnet_id: str, **_kwargs: Any) -> GraphNode | None:
             if subnet_id == "subnet-source123":
                 return source_subnet
             if subnet_id == "subnet-dest456":
@@ -577,14 +578,14 @@ class TestBlockedPaths:
     ) -> None:
         """Test traffic blocked by destination SG ingress rules."""
 
-        def get_subnet_mock(subnet_id: str, **kwargs: Any) -> GraphNode | None:
+        def get_subnet_mock(subnet_id: str, **_kwargs: Any) -> GraphNode | None:
             if subnet_id == "subnet-source123":
                 return source_subnet
             if subnet_id == "subnet-dest456":
                 return dest_subnet
             return None
 
-        def get_sg_mock(sg_id: str, **kwargs: Any) -> SecurityGroup | None:
+        def get_sg_mock(sg_id: str, **_kwargs: Any) -> SecurityGroup | None:
             if sg_id == "sg-source123":
                 return allow_all_sg
             if sg_id == "sg-dest456":
@@ -1001,14 +1002,14 @@ class TestNACLReturnPath:
             ],
         )
 
-        def get_subnet_mock(subnet_id: str, **kwargs: Any) -> GraphNode | None:
+        def get_subnet_mock(subnet_id: str, **_kwargs: Any) -> GraphNode | None:
             if subnet_id == "subnet-source123":
                 return source_subnet
             if subnet_id == "subnet-dest456":
                 return dest_subnet
             return None
 
-        def get_nacl_mock(nacl_id: str, **kwargs: Any) -> NetworkACL | None:
+        def get_nacl_mock(nacl_id: str, **_kwargs: Any) -> NetworkACL | None:
             if nacl_id == "acl-source123":
                 return allow_all_nacl
             if nacl_id == "acl-dest456":
@@ -1070,14 +1071,14 @@ class TestReverseRouteVerification:
             ],
         )
 
-        def get_subnet_mock(subnet_id: str, **kwargs: Any) -> GraphNode | None:
+        def get_subnet_mock(subnet_id: str, **_kwargs: Any) -> GraphNode | None:
             if subnet_id == "subnet-source123":
                 return source_subnet
             if subnet_id == "subnet-dest456":
                 return dest_subnet
             return None
 
-        def get_rt_mock(rt_id: str, **kwargs: Any) -> RouteTable | None:
+        def get_rt_mock(rt_id: str, **_kwargs: Any) -> RouteTable | None:
             if rt_id == "rtb-source123":
                 return local_route_table
             if rt_id == "rtb-dest456":

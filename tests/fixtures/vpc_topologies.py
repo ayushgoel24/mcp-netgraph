@@ -503,7 +503,9 @@ def create_simple_vpc_topology() -> VPCTopology:
             name="app-sg",
             inbound_rules=[
                 sg_rule_allow_port(8080, cidr=CIDR_PUBLIC_1, description="From web tier"),
-                sg_rule_allow_sg_reference(SG_WEB, port=8080, protocol="tcp", description="From web SG"),
+                sg_rule_allow_sg_reference(
+                    SG_WEB, port=8080, protocol="tcp", description="From web SG"
+                ),
             ],
             outbound_rules=[sg_rule_allow_all_outbound()],
             tags={"Name": "app-sg"},
@@ -1410,14 +1412,11 @@ def build_describe_instances_response(topology: VPCTopology) -> dict[str, Any]:
                                 "PrivateIpAddress": instance.private_ip,
                                 "SubnetId": instance.subnet_id,
                                 "Groups": [
-                                    {"GroupId": sg_id}
-                                    for sg_id in instance.security_group_ids
+                                    {"GroupId": sg_id} for sg_id in instance.security_group_ids
                                 ],
                             }
                         ],
-                        "Tags": [
-                            {"Key": k, "Value": v} for k, v in instance.tags.items()
-                        ],
+                        "Tags": [{"Key": k, "Value": v} for k, v in instance.tags.items()],
                     }
                 ],
             }
@@ -1452,9 +1451,7 @@ def build_describe_security_groups_response(topology: VPCTopology) -> dict[str, 
                 "VpcId": sg.vpc_id,
                 "GroupName": sg.name,
                 "IpPermissions": [_build_ip_permission(r) for r in sg.inbound_rules],
-                "IpPermissionsEgress": [
-                    _build_ip_permission(r) for r in sg.outbound_rules
-                ],
+                "IpPermissionsEgress": [_build_ip_permission(r) for r in sg.outbound_rules],
                 "Tags": [{"Key": k, "Value": v} for k, v in sg.tags.items()],
             }
         )

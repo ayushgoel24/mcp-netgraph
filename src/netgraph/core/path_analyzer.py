@@ -53,6 +53,7 @@ class TraversalContext:
     Tracks visited nodes, hop history, and accumulated evaluations.
     """
 
+    source_id: str  # Original source ID (instance or ENI) for result construction
     source_ip: str
     dest_ip: str
     port: int
@@ -124,6 +125,7 @@ class PathAnalyzer:
         """
         # Initialize traversal context
         ctx = TraversalContext(
+            source_id=source_id,  # Store original source ID for result construction
             source_ip="",  # Will be set after resolving source
             dest_ip=dest_ip,
             port=port,
@@ -258,10 +260,7 @@ class PathAnalyzer:
 
         # Check IPv6 if available
         ipv6_cidr = subnet.subnet_attrs.ipv6_cidr_block
-        if ipv6_cidr and CIDRMatcher.matches(ctx.dest_ip, ipv6_cidr):
-            return True
-
-        return False
+        return bool(ipv6_cidr and CIDRMatcher.matches(ctx.dest_ip, ipv6_cidr))
 
     async def _handle_local_destination(
         self,
@@ -979,7 +978,7 @@ class PathAnalyzer:
 
             return self._unknown_result(
                 ctx,
-                "destination",
+                ctx.source_id,
                 f"Cannot find ENI with IP {ctx.dest_ip}",
             )
 
@@ -1258,10 +1257,7 @@ class PathAnalyzer:
         try:
             addr = ip_address(ip)
             return not (
-                addr.is_private
-                or addr.is_loopback
-                or addr.is_link_local
-                or addr.is_reserved
+                addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved
             )
         except ValueError:
             return False

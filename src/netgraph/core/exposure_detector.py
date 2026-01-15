@@ -106,12 +106,8 @@ class ExposureDetector:
 
         # Calculate statistics
         duration = time.time() - start_time
-        high_severity = sum(
-            1 for r in exposed_resources if r.severity == "high"
-        )
-        critical_severity = sum(
-            1 for r in exposed_resources if r.severity == "critical"
-        )
+        high_severity = sum(1 for r in exposed_resources if r.severity == "high")
+        critical_severity = sum(1 for r in exposed_resources if r.severity == "critical")
 
         # Generate summary
         if exposed_resources:
@@ -334,14 +330,14 @@ class ExposureDetector:
         for sg in sgs:
             for rule in sg.inbound_rules:
                 # Check if rule allows traffic from anywhere on this port
-                if rule.cidr_ipv4 == "0.0.0.0/0" or rule.cidr_ipv6 == "::/0":
-                    # Check protocol
-                    if rule.ip_protocol == "-1" or rule.ip_protocol == protocol:
-                        # Check port range
-                        from_port = rule.from_port or 0
-                        to_port = rule.to_port or 65535
-                        if from_port <= port <= to_port:
-                            allowing_rules.append(rule.rule_id)
+                is_public_cidr = rule.cidr_ipv4 == "0.0.0.0/0" or rule.cidr_ipv6 == "::/0"
+                is_matching_protocol = rule.ip_protocol == "-1" or rule.ip_protocol == protocol
+                if is_public_cidr and is_matching_protocol:
+                    # Check port range
+                    from_port = rule.from_port or 0
+                    to_port = rule.to_port or 65535
+                    if from_port <= port <= to_port:
+                        allowing_rules.append(rule.rule_id)
 
         return allowing_rules
 
@@ -391,14 +387,14 @@ class ExposureDetector:
             f"exposure is intentional and properly secured."
         )
 
-    def _get_resource_name(self, eni: GraphNode) -> str | None:
+    def _get_resource_name(self, _eni: GraphNode) -> str | None:
         """Get resource name from ENI.
 
         Note: ENIAttributes doesn't store tags. Name would need to be
         retrieved from AWS describe call or stored separately.
 
         Args:
-            eni: ENI GraphNode
+            _eni: ENI GraphNode (unused - tags not available in current model)
 
         Returns:
             None (tags not available in current model)

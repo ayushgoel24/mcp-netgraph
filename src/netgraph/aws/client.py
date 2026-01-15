@@ -32,38 +32,44 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Error codes that indicate permission issues
-ACCESS_DENIED_CODES = frozenset({
-    "AccessDenied",
-    "UnauthorizedOperation",
-    "AccessDeniedException",
-    "AuthorizationError",
-})
+ACCESS_DENIED_CODES = frozenset(
+    {
+        "AccessDenied",
+        "UnauthorizedOperation",
+        "AccessDeniedException",
+        "AuthorizationError",
+    }
+)
 
 # Error codes that indicate resource doesn't exist
-NOT_FOUND_CODES = frozenset({
-    "InvalidInstanceID.NotFound",
-    "InvalidSubnetID.NotFound",
-    "InvalidSecurityGroupID.NotFound",
-    "InvalidNetworkAclID.NotFound",
-    "InvalidRouteTableID.NotFound",
-    "InvalidInternetGatewayID.NotFound",
-    "InvalidNatGatewayID.NotFound",
-    "InvalidVpcPeeringConnectionID.NotFound",
-    "InvalidPrefixListId.NotFound",
-    "InvalidNetworkInterfaceID.NotFound",
-    "InvalidVpcID.NotFound",
-})
+NOT_FOUND_CODES = frozenset(
+    {
+        "InvalidInstanceID.NotFound",
+        "InvalidSubnetID.NotFound",
+        "InvalidSecurityGroupID.NotFound",
+        "InvalidNetworkAclID.NotFound",
+        "InvalidRouteTableID.NotFound",
+        "InvalidInternetGatewayID.NotFound",
+        "InvalidNatGatewayID.NotFound",
+        "InvalidVpcPeeringConnectionID.NotFound",
+        "InvalidPrefixListId.NotFound",
+        "InvalidNetworkInterfaceID.NotFound",
+        "InvalidVpcID.NotFound",
+    }
+)
 
 # Error codes that should trigger retry
-RETRYABLE_CODES = frozenset({
-    "Throttling",
-    "ThrottlingException",
-    "RequestLimitExceeded",
-    "ServiceUnavailable",
-    "ServiceUnavailableException",
-    "InternalError",
-    "InternalServiceError",
-})
+RETRYABLE_CODES = frozenset(
+    {
+        "Throttling",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+        "ServiceUnavailable",
+        "ServiceUnavailableException",
+        "InternalError",
+        "InternalServiceError",
+    }
+)
 
 
 @dataclass

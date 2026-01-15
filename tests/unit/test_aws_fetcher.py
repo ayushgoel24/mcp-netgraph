@@ -73,22 +73,22 @@ class TestDescribeInstances:
     """Tests for describe_instances with pagination."""
 
     @pytest.mark.asyncio
-    async def test_single_page(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_single_page(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Fetches instances from single page."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {
-                "Reservations": [
-                    {
-                        "Instances": [
-                            {"InstanceId": "i-1", "State": {"Name": "running"}},
-                            {"InstanceId": "i-2", "State": {"Name": "running"}},
-                        ]
-                    }
-                ]
-            }
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [
+                {
+                    "Reservations": [
+                        {
+                            "Instances": [
+                                {"InstanceId": "i-1", "State": {"Name": "running"}},
+                                {"InstanceId": "i-2", "State": {"Name": "running"}},
+                            ]
+                        }
+                    ]
+                }
+            ]
+        )
 
         result = await fetcher.describe_instances()
 
@@ -97,15 +97,15 @@ class TestDescribeInstances:
         assert result[1]["InstanceId"] == "i-2"
 
     @pytest.mark.asyncio
-    async def test_multiple_pages(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_multiple_pages(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Fetches instances across multiple pages."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Reservations": [{"Instances": [{"InstanceId": "i-1"}]}]},
-            {"Reservations": [{"Instances": [{"InstanceId": "i-2"}]}]},
-            {"Reservations": [{"Instances": [{"InstanceId": "i-3"}]}]},
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [
+                {"Reservations": [{"Instances": [{"InstanceId": "i-1"}]}]},
+                {"Reservations": [{"Instances": [{"InstanceId": "i-2"}]}]},
+                {"Reservations": [{"Instances": [{"InstanceId": "i-3"}]}]},
+            ]
+        )
 
         result = await fetcher.describe_instances()
 
@@ -118,14 +118,16 @@ class TestDescribeInstances:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches instances from multiple reservations."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {
-                "Reservations": [
-                    {"Instances": [{"InstanceId": "i-1"}]},
-                    {"Instances": [{"InstanceId": "i-2"}, {"InstanceId": "i-3"}]},
-                ]
-            }
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [
+                {
+                    "Reservations": [
+                        {"Instances": [{"InstanceId": "i-1"}]},
+                        {"Instances": [{"InstanceId": "i-2"}, {"InstanceId": "i-3"}]},
+                    ]
+                }
+            ]
+        )
 
         result = await fetcher.describe_instances()
 
@@ -144,9 +146,7 @@ class TestDescribeInstances:
         paginator.paginate.assert_called_once_with(InstanceIds=["i-1", "i-2"])
 
     @pytest.mark.asyncio
-    async def test_with_aws_filters(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_with_aws_filters(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Passes AWS filters to paginator."""
         paginator = create_paginator_mock([{"Reservations": []}])
         mock_ec2_client.get_paginator.return_value = paginator
@@ -157,13 +157,9 @@ class TestDescribeInstances:
         paginator.paginate.assert_called_once_with(Filters=filters)
 
     @pytest.mark.asyncio
-    async def test_empty_result(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_empty_result(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Returns empty list when no instances found."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Reservations": []}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock([{"Reservations": []}])
 
         result = await fetcher.describe_instances()
 
@@ -174,22 +170,18 @@ class TestDescribeSubnets:
     """Tests for describe_subnets with pagination."""
 
     @pytest.mark.asyncio
-    async def test_fetches_subnets(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_fetches_subnets(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Fetches subnets with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Subnets": [{"SubnetId": "subnet-1"}, {"SubnetId": "subnet-2"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Subnets": [{"SubnetId": "subnet-1"}, {"SubnetId": "subnet-2"}]}]
+        )
 
         result = await fetcher.describe_subnets()
 
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_with_vpc_filter(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_with_vpc_filter(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Adds VPC filter to request."""
         paginator = create_paginator_mock([{"Subnets": []}])
         mock_ec2_client.get_paginator.return_value = paginator
@@ -210,18 +202,16 @@ class TestDescribeSecurityGroups:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches security groups with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"SecurityGroups": [{"GroupId": "sg-1"}, {"GroupId": "sg-2"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"SecurityGroups": [{"GroupId": "sg-1"}, {"GroupId": "sg-2"}]}]
+        )
 
         result = await fetcher.describe_security_groups()
 
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_with_group_ids(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_with_group_ids(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Passes group IDs to paginator."""
         paginator = create_paginator_mock([{"SecurityGroups": []}])
         mock_ec2_client.get_paginator.return_value = paginator
@@ -235,18 +225,18 @@ class TestDescribeNetworkInterfaces:
     """Tests for describe_network_interfaces with pagination."""
 
     @pytest.mark.asyncio
-    async def test_fetches_enis(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_fetches_enis(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Fetches ENIs with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {
-                "NetworkInterfaces": [
-                    {"NetworkInterfaceId": "eni-1"},
-                    {"NetworkInterfaceId": "eni-2"},
-                ]
-            }
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [
+                {
+                    "NetworkInterfaces": [
+                        {"NetworkInterfaceId": "eni-1"},
+                        {"NetworkInterfaceId": "eni-2"},
+                    ]
+                }
+            ]
+        )
 
         result = await fetcher.describe_network_interfaces()
 
@@ -261,9 +251,9 @@ class TestDescribeRouteTables:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches route tables with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"RouteTables": [{"RouteTableId": "rtb-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"RouteTables": [{"RouteTableId": "rtb-1"}]}]
+        )
 
         result = await fetcher.describe_route_tables()
 
@@ -293,13 +283,11 @@ class TestDescribeVPCs:
     """Tests for describe_vpcs with pagination."""
 
     @pytest.mark.asyncio
-    async def test_fetches_vpcs(
-        self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
-    ) -> None:
+    async def test_fetches_vpcs(self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock) -> None:
         """Fetches VPCs with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Vpcs": [{"VpcId": "vpc-1"}, {"VpcId": "vpc-2"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Vpcs": [{"VpcId": "vpc-1"}, {"VpcId": "vpc-2"}]}]
+        )
 
         result = await fetcher.describe_vpcs()
 
@@ -314,14 +302,16 @@ class TestGetManagedPrefixListEntries:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches CIDRs from prefix list."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {
-                "Entries": [
-                    {"Cidr": "10.0.0.0/8"},
-                    {"Cidr": "192.168.0.0/16"},
-                ]
-            }
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [
+                {
+                    "Entries": [
+                        {"Cidr": "10.0.0.0/8"},
+                        {"Cidr": "192.168.0.0/16"},
+                    ]
+                }
+            ]
+        )
 
         result = await fetcher.get_managed_prefix_list_entries("pl-12345")
 
@@ -367,9 +357,9 @@ class TestGetManagedPrefixListEntries:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """get_prefix_list_cidrs is alias for get_managed_prefix_list_entries."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Entries": [{"Cidr": "10.0.0.0/8"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Entries": [{"Cidr": "10.0.0.0/8"}]}]
+        )
 
         result = await fetcher.get_prefix_list_cidrs("pl-12345")
 
@@ -384,9 +374,9 @@ class TestSingleResourceFetchers:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single instance by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Reservations": [{"Instances": [{"InstanceId": "i-12345"}]}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Reservations": [{"Instances": [{"InstanceId": "i-12345"}]}]}]
+        )
 
         result = await fetcher.describe_instances_by_id("i-12345")
 
@@ -398,9 +388,7 @@ class TestSingleResourceFetchers:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Returns None when instance not found."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Reservations": []}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock([{"Reservations": []}])
 
         result = await fetcher.describe_instances_by_id("i-invalid")
 
@@ -411,9 +399,9 @@ class TestSingleResourceFetchers:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single subnet by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Subnets": [{"SubnetId": "subnet-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Subnets": [{"SubnetId": "subnet-12345"}]}]
+        )
 
         result = await fetcher.describe_subnet_by_id("subnet-12345")
 
@@ -425,9 +413,9 @@ class TestSingleResourceFetchers:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single security group by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"SecurityGroups": [{"GroupId": "sg-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"SecurityGroups": [{"GroupId": "sg-12345"}]}]
+        )
 
         result = await fetcher.describe_security_group_by_id("sg-12345")
 
@@ -439,9 +427,9 @@ class TestSingleResourceFetchers:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single VPC by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"Vpcs": [{"VpcId": "vpc-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"Vpcs": [{"VpcId": "vpc-12345"}]}]
+        )
 
         result = await fetcher.describe_vpc_by_id("vpc-12345")
 
@@ -562,9 +550,9 @@ class TestTransitGatewayResources:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches transit gateways with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"TransitGateways": [{"TransitGatewayId": "tgw-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"TransitGateways": [{"TransitGatewayId": "tgw-1"}]}]
+        )
 
         result = await fetcher.describe_transit_gateways()
 
@@ -576,9 +564,9 @@ class TestTransitGatewayResources:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches TGW attachments with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"TransitGatewayAttachments": [{"TransitGatewayAttachmentId": "tgw-attach-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"TransitGatewayAttachments": [{"TransitGatewayAttachmentId": "tgw-attach-1"}]}]
+        )
 
         result = await fetcher.describe_transit_gateway_attachments()
 
@@ -594,9 +582,9 @@ class TestVPCPeeringConnections:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches VPC peering connections with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"VpcPeeringConnections": [{"VpcPeeringConnectionId": "pcx-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"VpcPeeringConnections": [{"VpcPeeringConnectionId": "pcx-1"}]}]
+        )
 
         result = await fetcher.describe_vpc_peering_connections()
 
@@ -611,9 +599,9 @@ class TestInternetGateways:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches internet gateways with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"InternetGateways": [{"InternetGatewayId": "igw-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"InternetGateways": [{"InternetGatewayId": "igw-1"}]}]
+        )
 
         result = await fetcher.describe_internet_gateways()
 
@@ -643,9 +631,9 @@ class TestNetworkACLs:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches network ACLs with pagination."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"NetworkAcls": [{"NetworkAclId": "acl-1"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"NetworkAcls": [{"NetworkAclId": "acl-1"}]}]
+        )
 
         result = await fetcher.describe_network_acls()
 
@@ -656,9 +644,9 @@ class TestNetworkACLs:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single NACL by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"NetworkAcls": [{"NetworkAclId": "acl-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"NetworkAcls": [{"NetworkAclId": "acl-12345"}]}]
+        )
 
         result = await fetcher.describe_nacl_by_id("acl-12345")
 
@@ -670,9 +658,9 @@ class TestNetworkACLs:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single route table by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"RouteTables": [{"RouteTableId": "rtb-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"RouteTables": [{"RouteTableId": "rtb-12345"}]}]
+        )
 
         result = await fetcher.describe_route_table_by_id("rtb-12345")
 
@@ -684,9 +672,9 @@ class TestNetworkACLs:
         self, fetcher: EC2Fetcher, mock_ec2_client: MagicMock
     ) -> None:
         """Fetches single ENI by ID."""
-        mock_ec2_client.get_paginator.return_value = create_paginator_mock([
-            {"NetworkInterfaces": [{"NetworkInterfaceId": "eni-12345"}]}
-        ])
+        mock_ec2_client.get_paginator.return_value = create_paginator_mock(
+            [{"NetworkInterfaces": [{"NetworkInterfaceId": "eni-12345"}]}]
+        )
 
         result = await fetcher.describe_network_interface_by_id("eni-12345")
 
