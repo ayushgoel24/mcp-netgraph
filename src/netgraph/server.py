@@ -511,6 +511,112 @@ async def find_resources(
 
 
 @mcp.tool()
+async def list_vpcs(
+    name_pattern: str | None = None,
+    tags: dict[str, str] | None = None,
+    cidr: str | None = None,
+    ctx: Context = None,  # type: ignore
+) -> dict[str, Any]:
+    """List VPCs in the account, optionally filtered by name, tags, or CIDR.
+
+    Use this tool to discover VPC IDs when you know the VPC by name or tags
+    but need the VPC ID for other tools like find_resources or find_public_exposure.
+
+    Args:
+        name_pattern: Optional pattern to match VPC Name tag (case-insensitive,
+                     supports wildcards like "prod-*" or "*-web-*")
+        tags: Optional tag filters as key-value pairs (e.g., {"Environment": "prod"})
+        cidr: Optional CIDR block to filter by (exact match, e.g., "10.0.0.0/16")
+        ctx: MCP context (injected automatically)
+
+    Returns:
+        Dictionary containing:
+        - vpcs: List of matching VPCs with id, name, cidr, state, is_default, tags
+        - total_found: Total number of VPCs found
+        - filters_applied: Summary of filters used
+
+    Examples:
+        >>> list_vpcs()
+        {"vpcs": [{"id": "vpc-12345", "name": "production", ...}], ...}
+
+        >>> list_vpcs(name_pattern="prod-*")
+        {"vpcs": [{"id": "vpc-12345", "name": "prod-web", ...}], ...}
+
+        >>> list_vpcs(tags={"Environment": "production"})
+        {"vpcs": [{"id": "vpc-67890", "name": "main-vpc", ...}], ...}
+    """
+    import fnmatch
+
+    app_ctx = _get_app_context(ctx)
+
+    try:
+        # Build AWS filters if provided
+        aws_filters: list[dict[str, Any]] = []
+
+        if cidr:
+            aws_filters.append({"Name": "cidr-block-association.cidr-block", "Values": [cidr]})
+
+        # Fetch VPCs from AWS
+        vpcs = await app_ctx.fetcher.describe_vpcs(filters=aws_filters if aws_filters else None)
+
+        # Apply additional filtering (name pattern, tags) that AWS doesn't support well
+        filtered_vpcs: list[dict[str, Any]] = []
+
+        for vpc in vpcs:
+            # Extract name from tags
+            vpc_tags = {t["Key"]: t["Value"] for t in vpc.get("Tags", [])}
+            vpc_name = vpc_tags.get("Name", "")
+
+            # Filter by name pattern if provided
+            if name_pattern and not fnmatch.fnmatch(vpc_name.lower(), name_pattern.lower()):
+                continue
+
+            # Filter by tags if provided
+            if tags:
+                match = True
+                for key, value in tags.items():
+                    if vpc_tags.get(key) != value:
+                        match = False
+                        break
+                if not match:
+                    continue
+
+            filtered_vpcs.append(vpc)
+
+        # Build response
+        result_vpcs = []
+        for vpc in filtered_vpcs:
+            vpc_tags = {t["Key"]: t["Value"] for t in vpc.get("Tags", [])}
+            result_vpcs.append({
+                "id": vpc["VpcId"],
+                "name": vpc_tags.get("Name"),
+                "cidr": vpc.get("CidrBlock"),
+                "state": vpc.get("State"),
+                "is_default": vpc.get("IsDefault", False),
+                "tags": vpc_tags if vpc_tags else None,
+            })
+
+        # Build filters applied summary
+        filters_applied: dict[str, Any] = {}
+        if name_pattern:
+            filters_applied["name_pattern"] = name_pattern
+        if tags:
+            filters_applied["tags"] = tags
+        if cidr:
+            filters_applied["cidr"] = cidr
+
+        return {
+            "vpcs": result_vpcs,
+            "total_found": len(result_vpcs),
+            "filters_applied": filters_applied if filters_applied else None,
+        }
+
+    except NetGraphError as e:
+        logger.warning(f"VPC listing failed: {e}")
+        return e.to_response()
+
+
+@mcp.tool()
 async def get_cache_stats(
     ctx: Context = None,  # type: ignore
 ) -> dict[str, Any]:
@@ -564,7 +670,9 @@ def _path_result_to_dict(result: PathAnalysisResult) -> dict[str, Any]:
             "status": hop.status.value,
             "sg_eval": _rule_eval_to_dict(hop.sg_eval) if hop.sg_eval else None,
             "nacl_eval": _rule_eval_to_dict(hop.nacl_eval) if hop.nacl_eval else None,
-            "route_eval": _rule_eval_to_dict(hop.route_eval) if hop.route_eval else None,
+            "route_eval": (
+                _rule_eval_to_dict(hop.route_eval) if hop.route_eval else None
+            ),
         }
         for hop in result.hops
     ]
@@ -611,7 +719,7 @@ def _rule_eval_to_dict(eval_result: Any) -> dict[str, Any]:
         "allowed": eval_result.allowed,
         "resource_id": eval_result.resource_id,
         "resource_type": eval_result.resource_type,
-        "rule_id": eval_result.rule_id,
+        "rule_id": eval_result.matched_rule_id,
         "direction": eval_result.direction,
         "reason": eval_result.reason,
     }
@@ -640,7 +748,11 @@ def _exposure_result_to_dict(result: PublicExposureResult) -> dict[str, Any]:
         "exposed_resources": [
             {
                 "resource_id": r.resource_id,
-                "resource_type": r.resource_type.value if hasattr(r.resource_type, "value") else r.resource_type,
+                "resource_type": (
+                    r.resource_type.value
+                    if hasattr(r.resource_type, "value")
+                    else r.resource_type
+                ),
                 "name": r.name,
                 "private_ip": r.private_ip,
                 "public_ip": r.public_ip,
@@ -661,7 +773,11 @@ def _discovery_result_to_dict(result: ResourceDiscoveryResult) -> dict[str, Any]
         "resources": [
             {
                 "id": r.id,
-                "resource_type": r.resource_type.value if hasattr(r.resource_type, "value") else r.resource_type,
+                "resource_type": (
+                    r.resource_type.value
+                    if hasattr(r.resource_type, "value")
+                    else r.resource_type
+                ),
                 "name": r.name,
                 "tags": r.tags,
                 "private_ip": r.private_ip,
@@ -712,7 +828,10 @@ def main() -> None:
         log_level_str = "INFO"
     # Cast to the expected Literal type
     from typing import Literal, cast
-    log_level = cast("Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']", log_level_str)
+
+    log_level = cast(
+        "Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']", log_level_str
+    )
     setup_logging(level=log_level)
 
     logger.info("Starting NetGraph MCP server")
