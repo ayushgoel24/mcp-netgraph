@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aws-vpc-analyzer"
-version = "0.5.0"
+version = "0.5.1"
 description = "MCP server for AWS VPC network topology analysis using NetworkX directed graphs"
 readme = "README.md"
 license = "MIT"
@@ -50,6 +50,7 @@ dev = [
 
 [project.scripts]
 mcp-netgraph = "netgraph.server:main"
+aws-vpc-analyzer = "netgraph.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/netgraph"]
